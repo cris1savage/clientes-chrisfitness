@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Logo from '@/components/Logo';
@@ -13,6 +13,16 @@ export default function LoginClient() {
   const [needsMfa, setNeedsMfa] = useState(false);
   const [err,      setErr]      = useState('');
   const [loading,  setLoading]  = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  // Si ya hay sesión activa, redirigir
+  useEffect(() => {
+    const sb = createClient();
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (session) router.replace('/clientes');
+      else setChecking(false);
+    });
+  }, []);
 
   const submitPassword = async (e) => {
     e.preventDefault();
@@ -24,8 +34,7 @@ export default function LoginClient() {
     const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
     setLoading(false);
     if (aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2') { setNeedsMfa(true); return; }
-    router.push('/clientes');
-    router.refresh();
+    router.replace('/clientes');
   };
 
   const submitCode = async (e) => {
@@ -41,9 +50,16 @@ export default function LoginClient() {
     const { error: verifyErr } = await sb.auth.mfa.verify({ factorId: factor.id, challengeId: challenge.id, code: code.trim() });
     setLoading(false);
     if (verifyErr) { setErr('Código incorrecto.'); return; }
-    router.push('/clientes');
-    router.refresh();
+    router.replace('/clientes');
   };
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <div className="text-muted text-sm">Cargando…</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-bg">
@@ -64,11 +80,11 @@ export default function LoginClient() {
             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
             <input type="email" required placeholder="Email"
               value={email} onChange={(e) => setEmail(e.target.value)}
-              className="rounded-lg px-3 py-2.5 w-full text-sm outline-none focus:border-cyan text-ink"
+              className="rounded-lg px-3 py-2.5 w-full text-sm outline-none text-ink"
               style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }} />
             <input type="password" required placeholder="Contraseña"
               value={password} onChange={(e) => setPassword(e.target.value)}
-              className="rounded-lg px-3 py-2.5 w-full text-sm outline-none focus:border-cyan text-ink"
+              className="rounded-lg px-3 py-2.5 w-full text-sm outline-none text-ink"
               style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }} />
             {err && <div className="text-red text-xs">{err}</div>}
             <button type="submit" disabled={loading}
@@ -81,7 +97,7 @@ export default function LoginClient() {
           <form onSubmit={submitCode} className="space-y-3 rounded-xl p-5"
             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
             <div className="text-ink text-sm font-semibold">Código de verificación</div>
-            <div className="text-muted text-xs">Abre tu app autenticadora e introduce el código de 6 dígitos.</div>
+            <div className="text-muted text-xs">Introduce el código de 6 dígitos de tu app autenticadora.</div>
             <input autoFocus value={code} onChange={(e) => setCode(e.target.value)}
               placeholder="000000" maxLength={6}
               className="rounded-lg px-3 py-2.5 w-full text-lg tracking-[0.3em] text-center outline-none text-ink"
