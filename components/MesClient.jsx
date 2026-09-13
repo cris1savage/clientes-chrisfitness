@@ -197,16 +197,21 @@ export default function MesClient({ clienteId, clienteName, phases, initialCheck
   const w = weekDraft || weeklyNotes[activeWeekIdx] || {};
 
   // Cálculos de la semana activa
-  const kcalMediaW   = calcKcalMedia(w.kcal_on, w.kcal_off, w.dias_on);
   const kcalMacrosOn = calcKcalFromMacros(w.protein_on, w.carbs_on, w.fat_on);
   const kcalMacrosOff= calcKcalFromMacros(w.protein_off, w.carbs_off, w.fat_off);
+  // Si no se ha puesto un Kcal ON/OFF manual, se usa el calculado a partir de los macros
+  const effKcalOn    = w.kcal_on  ?? kcalMacrosOn;
+  const effKcalOff   = w.kcal_off ?? kcalMacrosOff;
+  const kcalMediaW    = calcKcalMedia(effKcalOn, effKcalOff, w.dias_on);
   const diasOff      = w.dias_on != null ? 7 - Number(w.dias_on) : null;
 
   // Medias del mes
   const notesArr   = weeklyNotes;
   const avgSteps   = avgWeeklyField(notesArr, 'steps');
   const avgAdh     = avgWeeklyField(notesArr, 'adherence');
-  const kcalMedias = notesArr.map((n) => calcKcalMedia(n.kcal_on, n.kcal_off, n.dias_on)).filter(Boolean);
+  const kcalMedias = notesArr
+    .map((n) => calcKcalMedia(n.kcal_on ?? calcKcalFromMacros(n.protein_on, n.carbs_on, n.fat_on), n.kcal_off ?? calcKcalFromMacros(n.protein_off, n.carbs_off, n.fat_off), n.dias_on))
+    .filter(Boolean);
   const avgKcal    = kcalMedias.length ? Math.round(kcalMedias.reduce((a,b)=>a+b,0)/kcalMedias.length) : null;
 
   return (
@@ -381,38 +386,48 @@ export default function MesClient({ clienteId, clienteName, phases, initialCheck
 
                 {/* Kcal ON / OFF */}
                 <div className="rounded-xl p-3 space-y-2" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
-                  <div className="text-[9px] text-muted uppercase tracking-widest">Kcal días ON / OFF</div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-[9px] text-muted uppercase tracking-widest">Kcal días ON / OFF</div>
+                    {(kcalMacrosOn != null || kcalMacrosOff != null) && (w.kcal_on == null && w.kcal_off == null) && (
+                      <div className="text-[9px] text-cyan">↳ usando kcal de macros</div>
+                    )}
+                  </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <div className="text-[9px] font-bold text-amber mb-1">Kcal ON</div>
-                      <input type="number" value={w.kcal_on ?? ''} placeholder="—"
+                      <input type="number" value={w.kcal_on ?? ''} placeholder={kcalMacrosOn != null ? `${kcalMacrosOn}` : '—'}
                         onChange={(e) => updateDraft({ kcal_on: e.target.value === '' ? null : Number(e.target.value) })}
                         className="bg-transparent text-amber text-base font-bold outline-none w-full border-none" />
                     </div>
                     <div>
                       <div className="text-[9px] font-bold mb-1" style={{ color: '#FB923C' }}>Kcal OFF</div>
-                      <input type="number" value={w.kcal_off ?? ''} placeholder="—"
+                      <input type="number" value={w.kcal_off ?? ''} placeholder={kcalMacrosOff != null ? `${kcalMacrosOff}` : '—'}
                         onChange={(e) => updateDraft({ kcal_off: e.target.value === '' ? null : Number(e.target.value) })}
                         className="bg-transparent text-base font-bold outline-none w-full border-none" style={{ color: '#FB923C' }} />
                     </div>
                     <div>
-                      <div className="text-[9px] text-muted mb-1">Días ON / OFF</div>
-                      <div className="flex items-center gap-1">
-                        <input type="number" min="0" max="7" value={w.dias_on ?? ''} placeholder="—"
-                          onChange={(e) => updateDraft({ dias_on: e.target.value === '' ? null : Number(e.target.value) })}
-                          className="bg-transparent text-amber text-base font-bold outline-none w-8 border-none" />
-                        {diasOff != null && <span className="text-muted text-xs">/ {diasOff}d</span>}
+                      <div className="text-[9px] font-bold text-ink mb-1">Días ON (de 7)</div>
+                      <div className="flex items-center gap-1.5">
+                        <input type="number" min="0" max="7" value={w.dias_on ?? ''} placeholder="0-7"
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (v === '') return updateDraft({ dias_on: null });
+                            const n = Math.min(7, Math.max(0, Number(v)));
+                            updateDraft({ dias_on: n });
+                          }}
+                          className="bg-surface border border-border rounded-lg px-2 py-1 text-amber text-base font-bold outline-none w-14 text-center focus:border-amber" />
+                        <span className="text-muted text-xs">/ {diasOff != null ? `${diasOff} off` : '7'}</span>
                       </div>
                     </div>
                   </div>
                   {kcalMediaW != null ? (
                     <div className="text-[10px] text-muted pt-1 border-t border-border">
-                      Media: <span className="text-amber font-bold">{kcalMediaW} kcal/día</span>
-                      {w.dias_on != null && <span className="ml-1">({w.dias_on}d on · {diasOff}d off)</span>}
+                      Media semanal: <span className="text-amber font-bold">{kcalMediaW} kcal/día</span>
+                      {w.dias_on != null && <span className="ml-1">({w.dias_on}d on × {effKcalOn ?? '?'} + {diasOff}d off × {effKcalOff ?? '?'}) / 7</span>}
                     </div>
-                  ) : (w.kcal_on != null && w.kcal_off != null) ? (
+                  ) : (effKcalOn != null && effKcalOff != null) ? (
                     <div className="text-[10px] text-muted pt-1 border-t border-border">
-                      Rellena los <span className="text-amber font-semibold">días ON</span> para calcular la media semanal
+                      Escribe cuántos <span className="text-amber font-semibold">días ON</span> (de 7) tuvo la semana para calcular la media
                     </div>
                   ) : null}
                 </div>

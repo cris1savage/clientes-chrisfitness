@@ -235,8 +235,8 @@ export default function VistaPublicaClient({ cliente }) {
                     <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
                       {w.steps != null && <span style={{ fontSize: 10, color: '#4ADE80' }}>👣 {w.steps.toLocaleString()} pasos</span>}
                       {w.adherence != null && <span style={{ fontSize: 10, color: '#A78BFA' }}>🎯 {w.adherence}% adherencia</span>}
-                      {calcKcalMedia(w.kcal_on, w.kcal_off, w.dias_on) != null && (
-                        <span style={{ fontSize: 10, color: '#FBBF24' }}>🔥 {calcKcalMedia(w.kcal_on, w.kcal_off, w.dias_on)} kcal/día</span>
+                      {calcKcalMedia(w.kcal_on ?? calcKcalFromMacros(w.protein_on, w.carbs_on, w.fat_on), w.kcal_off ?? calcKcalFromMacros(w.protein_off, w.carbs_off, w.fat_off), w.dias_on) != null && (
+                        <span style={{ fontSize: 10, color: '#FBBF24' }}>🔥 {calcKcalMedia(w.kcal_on ?? calcKcalFromMacros(w.protein_on, w.carbs_on, w.fat_on), w.kcal_off ?? calcKcalFromMacros(w.protein_off, w.carbs_off, w.fat_off), w.dias_on)} kcal/día</span>
                       )}
                     </div>
                   </div>
