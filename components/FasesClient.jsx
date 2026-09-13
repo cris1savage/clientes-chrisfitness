@@ -23,14 +23,14 @@ export default function FasesClient({ clienteId, initialPhases, initialGoal }) {
 
   const save = async (next) => {
     setPhases(next);
-    await supabase.from('active_clients').update({ phases: next }).eq('id', clienteId);
+    await supabase.from('tracking_clients').update({ phases: next }).eq('id', clienteId);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
   const saveGoal = async (v) => {
     setLongTermGoal(v);
-    await supabase.from('active_clients').update({ long_term_goal: v }).eq('id', clienteId);
+    await supabase.from('tracking_clients').update({ long_term_goal: v }).eq('id', clienteId);
   };
 
   const addPhase = () => {

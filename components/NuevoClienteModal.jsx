@@ -71,7 +71,7 @@ export default function NuevoClienteModal({ onClose }) {
     const sb = createClient();
 
     const { data: cliente, error } = await sb
-      .from('active_clients')
+      .from('tracking_clients')
       .insert({
         ...form,
         status: 'Activo',
@@ -90,8 +90,8 @@ export default function NuevoClienteModal({ onClose }) {
     // Si hay peso inicial, crear el checkin del mes actual
     if (startWeight && !isNaN(Number(startWeight))) {
       const currentMonth = new Date().toISOString().slice(0, 7);
-      const { error: checkinErr } = await sb.from('client_checkins').insert({
-        active_client_id: cliente.id,
+      const { error: checkinErr } = await sb.from('tracking_checkins').insert({
+        tracking_client_id: cliente.id,
         month: currentMonth,
         weight: Number(startWeight),
         phase: phases.find((p) => {

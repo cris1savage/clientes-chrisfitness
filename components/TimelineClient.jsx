@@ -20,10 +20,10 @@ export default function TimelineClient({ clienteId, phases, initialWeeks, initia
     const startWeight = initialCheckins.find((c) => c.weight != null)?.weight || 80;
     const generated   = generateWeeks(phases, phases[0].start_date, 52, startWeight);
     const { data } = await supabase
-      .from('client_timeline_weeks')
+      .from('tracking_timeline_weeks')
       .upsert(
-        generated.map((w) => ({ active_client_id: clienteId, ...w })),
-        { onConflict: 'active_client_id,week_start', ignoreDuplicates: true }
+        generated.map((w) => ({ tracking_client_id: clienteId, ...w })),
+        { onConflict: 'tracking_client_id,week_start', ignoreDuplicates: true }
       )
       .select();
     if (data) setWeeks((prev) => {
@@ -38,15 +38,15 @@ export default function TimelineClient({ clienteId, phases, initialWeeks, initia
     if (Number.isNaN(v)) return;
     const updated = recalcFrom(weeks, phases, idx, v);
     setWeeks((w) => w.map((row, i) => i >= idx ? updated[i - idx] : row));
-    await supabase.from('client_timeline_weeks').upsert(
-      updated.map((w) => ({ active_client_id: clienteId, ...w, updated_at: new Date().toISOString() })),
-      { onConflict: 'active_client_id,week_start' }
+    await supabase.from('tracking_timeline_weeks').upsert(
+      updated.map((w) => ({ tracking_client_id: clienteId, ...w, updated_at: new Date().toISOString() })),
+      { onConflict: 'tracking_client_id,week_start' }
     );
   };
 
   const editWeekField = async (id, patch) => {
     setWeeks((w) => w.map((row) => row.id === id ? { ...row, ...patch } : row));
-    await supabase.from('client_timeline_weeks').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id);
+    await supabase.from('tracking_timeline_weeks').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id);
   };
 
   return (
@@ -86,10 +86,10 @@ export default function TimelineClient({ clienteId, phases, initialWeeks, initia
       {weeks.length > 0 && (
         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
           {/* Cabecera */}
-          <div className="grid px-4 py-2.5 text-muted text-[10px] uppercase tracking-widest"
+          <div className="grid px-5 py-3 text-muted text-[10px] uppercase tracking-widest"
             style={{
               background: 'var(--color-surfaceAlt)',
-              gridTemplateColumns: '36px 88px 112px 72px 72px 88px 88px 52px',
+              gridTemplateColumns: '44px 100px 130px 90px 90px 100px 100px 60px',
             }}>
             <div>Sem.</div>
             <div>Fecha</div>
@@ -113,9 +113,9 @@ export default function TimelineClient({ clienteId, phases, initialWeeks, initia
 
             return (
               <div key={w.id}
-                className="grid px-4 py-2 items-center"
+                className="grid px-5 py-3 items-center"
                 style={{
-                  gridTemplateColumns: '36px 88px 112px 72px 72px 88px 88px 52px',
+                  gridTemplateColumns: '44px 100px 130px 90px 90px 100px 100px 60px',
                   background:   isThisWeek ? '#5ECCFA08' : idx % 2 === 0 ? 'var(--color-bg)' : 'var(--color-surface)',
                   borderTop:    '1px solid var(--color-border)',
                   borderLeft:   `2px solid ${isThisWeek ? 'var(--color-cyan)' : 'transparent'}`,

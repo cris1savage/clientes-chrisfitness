@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, Plus, LogOut, TrendingDown, TrendingUp, Minus,
-  ChevronRight, AlertTriangle, Bell, Calendar, Users, CheckCircle, Phone, Check as CheckIcon,
+  ChevronRight, AlertTriangle, Bell, Calendar, Users, CheckCircle, Phone, Check as CheckIcon, Trash2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { phaseColor, todayISO, mondayOf, addDaysISO } from '@/lib/timeline';
@@ -15,14 +15,14 @@ import InstallAppButton from './InstallAppButton';
 
 /* ─── helpers ─────────────────────────────────────────────── */
 function getLatestWeight(c) {
-  const ch = (c.client_checkins || []).filter((x) => x.weight != null).sort((a, b) => b.month.localeCompare(a.month));
+  const ch = (c.tracking_checkins || []).filter((x) => x.weight != null).sort((a, b) => b.month.localeCompare(a.month));
   if (ch[0]) return ch[0].weight;
-  const wk = (c.client_timeline_weeks || []).filter((x) => x.real_weight != null).sort((a, b) => b.week_start.localeCompare(a.week_start));
+  const wk = (c.tracking_timeline_weeks || []).filter((x) => x.real_weight != null).sort((a, b) => b.week_start.localeCompare(a.week_start));
   return wk[0]?.real_weight ?? null;
 }
 
 function getWeightDiff(c) {
-  const ch = (c.client_checkins || []).filter((x) => x.weight != null).sort((a, b) => a.month.localeCompare(b.month));
+  const ch = (c.tracking_checkins || []).filter((x) => x.weight != null).sort((a, b) => a.month.localeCompare(b.month));
   if (ch.length >= 2) return Math.round((ch[ch.length - 1].weight - ch[0].weight) * 10) / 10;
   return null;
 }
@@ -34,13 +34,13 @@ function getCurrentPhase(c) {
 
 function getGoalStatus(c) {
   const m = todayISO().slice(0, 7);
-  return (c.client_checkins || []).find((x) => x.month === m)?.goal_status || null;
+  return (c.tracking_checkins || []).find((x) => x.month === m)?.goal_status || null;
 }
 
 function daysSinceWeight(c) {
   const today = todayISO();
   // Buscar el registro más reciente con peso en checkins mensuales
-  const ch = (c.client_checkins || []).filter((x) => x.weight != null).sort((a, b) => b.month.localeCompare(a.month));
+  const ch = (c.tracking_checkins || []).filter((x) => x.weight != null).sort((a, b) => b.month.localeCompare(a.month));
   if (ch[0]) {
     // Calculamos desde el primer día del mes más reciente con peso
     const d = new Date(`${ch[0].month}-01T00:00:00`);
@@ -48,7 +48,7 @@ function daysSinceWeight(c) {
     return Math.floor(diff);
   }
   // Si no, miramos el real_weight más reciente del timeline
-  const wk = (c.client_timeline_weeks || []).filter((x) => x.real_weight != null).sort((a, b) => b.week_start.localeCompare(a.week_start));
+  const wk = (c.tracking_timeline_weeks || []).filter((x) => x.real_weight != null).sort((a, b) => b.week_start.localeCompare(a.week_start));
   if (wk[0]) {
     const diff = (new Date(today) - new Date(`${wk[0].week_start}T00:00:00`)) / 86400000;
     return Math.floor(diff);
@@ -58,7 +58,7 @@ function daysSinceWeight(c) {
 
 function nextCall(c) {
   const today = todayISO();
-  const upcoming = (c.client_checkins || [])
+  const upcoming = (c.tracking_checkins || [])
     .filter((x) => x.call_date && x.call_date >= today && !x.call_done)
     .sort((a, b) => a.call_date.localeCompare(b.call_date));
   return upcoming[0]?.call_date || null;
@@ -81,19 +81,19 @@ export default function ClientesListClient({ clientes }) {
   // Notas/guion de llamada — estado local editable, se guarda en client_checkins.call_notes
   const [callNotes, setCallNotes] = useState(() => {
     const map = {};
-    clientes.forEach((c) => (c.client_checkins || []).forEach((ch) => { if (ch.call_notes != null) map[ch.id] = ch.call_notes; }));
+    clientes.forEach((c) => (c.tracking_checkins || []).forEach((ch) => { if (ch.call_notes != null) map[ch.id] = ch.call_notes; }));
     return map;
   });
   const [savedNoteId, setSavedNoteId] = useState(null);
 
   const saveCallNote = async (checkinId, value) => {
-    await supabase.from('client_checkins').update({ call_notes: value }).eq('id', checkinId);
+    await supabase.from('tracking_checkins').update({ call_notes: value }).eq('id', checkinId);
     setSavedNoteId(checkinId);
     setTimeout(() => setSavedNoteId((id) => id === checkinId ? null : id), 1500);
   };
 
   const toggleCallDone = async (checkinId, current) => {
-    await supabase.from('client_checkins').update({ call_done: !current }).eq('id', checkinId);
+    await supabase.from('tracking_checkins').update({ call_done: !current }).eq('id', checkinId);
     router.refresh();
   };
 
@@ -128,7 +128,7 @@ export default function ClientesListClient({ clientes }) {
       const gs = getGoalStatus(c);
       if (gs === 'No cumplido' && !isSilenced(`obj_${c.id}`)) out.push({ tipo: 'objetivo', cliente: c, silenceKey: `obj_${c.id}` });
 
-      const hasMonth = (c.client_checkins || []).some((x) => x.month === thisMonth);
+      const hasMonth = (c.tracking_checkins || []).some((x) => x.month === thisMonth);
       if (!hasMonth && !isSilenced(`mes_${c.id}`)) out.push({ tipo: 'sin_mes', cliente: c, silenceKey: `mes_${c.id}` });
     });
     return out;
@@ -136,7 +136,7 @@ export default function ClientesListClient({ clientes }) {
 
   /* ── parte semanal ── */
   const semana = useMemo(() => clientes.map((c) => {
-    const week = (c.client_timeline_weeks || []).find((w) => w.week_start === thisWeekStart);
+    const week = (c.tracking_timeline_weeks || []).find((w) => w.week_start === thisWeekStart);
     const realW = week?.real_weight;
     const targetW = week?.target_weight;
     const diff = realW != null && targetW != null ? Math.round((realW - targetW) * 10) / 10 : null;
@@ -147,7 +147,7 @@ export default function ClientesListClient({ clientes }) {
   const llamadas = useMemo(() => {
     const out = [];
     clientes.forEach((c) => {
-      (c.client_checkins || []).forEach((ch) => {
+      (c.tracking_checkins || []).forEach((ch) => {
         if (ch.call_date) out.push({ cliente: c, checkin: ch });
       });
     });
@@ -165,6 +165,14 @@ export default function ClientesListClient({ clientes }) {
   const handleLogout = async () => {
     await createClient().auth.signOut();
     router.push('/login'); router.refresh();
+  };
+
+  const eliminarCliente = async (cliente, e) => {
+    e.stopPropagation();
+    if (!window.confirm(`¿Eliminar a ${cliente.name} del panel de seguimiento?\n\nSe borrarán todos sus datos de peso, fases y seguimiento. Esta acción no se puede deshacer.`)) return;
+    const sb = createClient();
+    await sb.from('tracking_clients').delete().eq('id', cliente.id);
+    router.refresh();
   };
 
   return (
@@ -220,7 +228,7 @@ export default function ClientesListClient({ clientes }) {
           <>
             {/* Stats */}
             {(() => {
-              const sinMes = clientes.filter((c) => !(c.client_checkins || []).some((x) => x.month === thisMonth));
+              const sinMes = clientes.filter((c) => !(c.tracking_checkins || []).some((x) => x.month === thisMonth));
               return (
                 <div className="grid grid-cols-3 gap-2">
                   <div className="rounded-xl p-3 text-center" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
@@ -270,9 +278,10 @@ export default function ClientesListClient({ clientes }) {
                     const col  = ph ? phaseColor([], ph.name) : 'var(--color-muted)';
 
                     return (
-                      <button key={c.id} onClick={() => router.push(`/clientes/${c.id}`)}
-                        className="w-full text-left rounded-xl p-4"
-                        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                      <div key={c.id}
+                        className="w-full text-left rounded-xl p-4 cursor-pointer"
+                        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                        onClick={() => router.push(`/clientes/${c.id}`)}>
                         <div className="flex items-center gap-3">
                           {/* Avatar */}
                           <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
@@ -314,8 +323,15 @@ export default function ClientesListClient({ clientes }) {
                             ) : <div className="text-muted text-xs">Sin peso</div>}
                           </div>
                           <ChevronRight size={15} className="text-muted shrink-0" />
+                          <button
+                            onClick={(e) => eliminarCliente(c, e)}
+                            className="p-1.5 rounded-lg text-muted hover:text-red transition-colors shrink-0"
+                            title="Eliminar cliente"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
