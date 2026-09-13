@@ -2,13 +2,16 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Video, Check, X, FileDown, Loader2, Trash2, Ruler, Dumbbell, Apple, Clock, Sparkles } from 'lucide-react';
+import { Plus, Video, Check, X, FileDown, Loader2, Trash2, Ruler, Dumbbell, Apple, Clock, Sparkles, Footprints, Flame, Percent } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Card from '@/components/Card';
 import {
   phaseForDate, phaseColor, PHASE_NAMES, todayISO, defaultWeeklyNotes,
   MEASUREMENTS, WEEK_STRENGTHS, STRENGTH_COLOR, GOAL_STATUSES, GOAL_COLORS, monthLabelFull,
+  weekRangeLabel, avgWeeklyField, WEEK_METRICS, LEVEL_OPTIONS, LEVEL_COLORS,
 } from '@/lib/timeline';
+
+const WEEK_METRIC_ICONS = { steps: Footprints, kcal_avg: Flame, adherence: Percent };
 import { downloadCheckinPDF } from '@/lib/pdf';
 
 export default function MesClient({ clienteId, clienteName, phases, initialCheckins }) {
@@ -159,13 +162,13 @@ export default function MesClient({ clienteId, clienteName, phases, initialCheck
         <div className="flex items-center gap-2 text-muted text-[10px] uppercase tracking-widest mb-4">
           <Clock size={11} /> Semana a semana
         </div>
-        <div className="space-y-4">
+        <div className="space-y-5">
           {(currentCheckin.weekly_notes?.length ? currentCheckin.weekly_notes : defaultWeeklyNotes(currentCheckin.month)).map((w, i) => (
-            <div key={i} className="flex items-start gap-3">
+            <div key={i} className="flex items-start gap-3 pb-4 last:pb-0" style={{ borderBottom: i < 3 ? '1px solid var(--color-border)' : 'none' }}>
               <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: STRENGTH_COLOR[w.strength] || 'var(--color-border)' }} />
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="text-ink text-sm font-semibold">{w.label}</span>
+                <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                  <span className="text-ink text-sm font-semibold">{weekRangeLabel(currentCheckin.month, i)}</span>
                   <div className="flex gap-1">
                     {WEEK_STRENGTHS.map((s) => (
                       <button key={s} onClick={() => updateWeekNote(currentCheckin, i, { strength: s })}
@@ -181,30 +184,110 @@ export default function MesClient({ clienteId, clienteName, phases, initialCheck
                 </div>
                 <input value={w.note || ''} onChange={(e) => updateWeekNote(currentCheckin, i, { note: e.target.value })}
                   placeholder="Nota de esta semana..."
-                  className="text-muted text-sm bg-transparent border-none outline-none w-full" />
+                  className="text-muted text-sm bg-transparent border-none outline-none w-full mb-2.5" />
+                {/* Datos de valor: pasos, kcal media, adherencia */}
+                <div className="grid grid-cols-3 gap-2">
+                  {WEEK_METRICS.map((m) => {
+                    const Icon = WEEK_METRIC_ICONS[m.key];
+                    return (
+                      <div key={m.key} className="rounded-lg px-2.5 py-1.5" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+                        <div className="flex items-center gap-1 text-muted text-[9px] uppercase tracking-widest mb-0.5">
+                          <Icon size={9} style={{ color: m.color }} /> {m.label}
+                        </div>
+                        <div className="flex items-baseline gap-0.5">
+                          <input type="number" value={w[m.key] ?? ''} placeholder="—"
+                            onChange={(e) => updateWeekNote(currentCheckin, i, { [m.key]: e.target.value === '' ? null : Number(e.target.value) })}
+                            className="bg-transparent text-sm font-bold outline-none w-full" style={{ color: m.color }} />
+                          {m.unit && w[m.key] != null && <span className="text-[10px] font-semibold" style={{ color: m.color }}>{m.unit}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           ))}
         </div>
+        {/* Resumen medias del mes */}
+        {(() => {
+          const notes = currentCheckin.weekly_notes?.length ? currentCheckin.weekly_notes : defaultWeeklyNotes(currentCheckin.month);
+          const avgSteps = avgWeeklyField(notes, 'steps');
+          const avgKcal  = avgWeeklyField(notes, 'kcal_avg');
+          const avgAdh   = avgWeeklyField(notes, 'adherence');
+          if (avgSteps == null && avgKcal == null && avgAdh == null) return null;
+          return (
+            <div className="flex flex-wrap gap-4 mt-4 pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
+              {avgSteps != null && <div className="text-xs"><span className="text-muted">Media pasos: </span><span className="font-bold text-green">{avgSteps}</span></div>}
+              {avgKcal  != null && <div className="text-xs"><span className="text-muted">Media kcal: </span><span className="font-bold text-amber">{avgKcal}</span></div>}
+              {avgAdh   != null && <div className="text-xs"><span className="text-muted">Adherencia media: </span><span className="font-bold text-violet">{avgAdh}%</span></div>}
+            </div>
+          );
+        })()}
       </Card>
 
       {/* Entrenamiento + Nutrición */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card>
-          <div className="flex items-center gap-1.5 text-muted text-[10px] uppercase tracking-widest mb-2"><Dumbbell size={11} /> Entrenamiento</div>
-          <textarea value={currentCheckin.training_notes || ''} rows={4}
-            onChange={(e) => updateCheckin(currentCheckin.id, { training_notes: e.target.value })}
-            placeholder="Progresión, ejercicios clave, observaciones..."
-            className="bg-transparent text-ink text-sm w-full outline-none resize-none leading-relaxed border-none" />
-        </Card>
-        <Card>
-          <div className="flex items-center gap-1.5 text-muted text-[10px] uppercase tracking-widest mb-2"><Apple size={11} /> Nutrición</div>
-          <textarea value={currentCheckin.nutrition_notes || ''} rows={4}
-            onChange={(e) => updateCheckin(currentCheckin.id, { nutrition_notes: e.target.value })}
-            placeholder="Adherencia, puntos débiles, ajustes..."
-            className="bg-transparent text-ink text-sm w-full outline-none resize-none leading-relaxed border-none" />
-        </Card>
-      </div>
+      {(() => {
+        const notes = currentCheckin.weekly_notes?.length ? currentCheckin.weekly_notes : defaultWeeklyNotes(currentCheckin.month);
+        const avgSteps = avgWeeklyField(notes, 'steps');
+        const avgKcal  = avgWeeklyField(notes, 'kcal_avg');
+        const avgAdh   = avgWeeklyField(notes, 'adherence');
+        return (
+          <div className="grid grid-cols-2 gap-3">
+            <Card>
+              <div className="flex items-center justify-between mb-2.5 flex-wrap gap-1.5">
+                <div className="flex items-center gap-1.5 text-muted text-[10px] uppercase tracking-widest"><Dumbbell size={11} /> Entrenamiento</div>
+                <div className="flex gap-1">
+                  {LEVEL_OPTIONS.map((lvl) => (
+                    <button key={lvl} onClick={() => updateCheckin(currentCheckin.id, { training_level: lvl })}
+                      title={lvl}
+                      className="w-2.5 h-2.5 rounded-full transition-all"
+                      style={{
+                        background: currentCheckin.training_level === lvl ? LEVEL_COLORS[lvl] : 'var(--color-border)',
+                        outline: currentCheckin.training_level === lvl ? `2px solid ${LEVEL_COLORS[lvl]}40` : 'none',
+                      }} />
+                  ))}
+                </div>
+              </div>
+              {currentCheckin.training_level && (
+                <div className="text-[11px] font-bold mb-2" style={{ color: LEVEL_COLORS[currentCheckin.training_level] }}>{currentCheckin.training_level}</div>
+              )}
+              <textarea value={currentCheckin.training_notes || ''} rows={3}
+                onChange={(e) => updateCheckin(currentCheckin.id, { training_notes: e.target.value })}
+                placeholder="Progresión, ejercicios clave, observaciones..."
+                className="bg-transparent text-ink text-sm w-full outline-none resize-none leading-relaxed border-none" />
+            </Card>
+            <Card>
+              <div className="flex items-center justify-between mb-2.5 flex-wrap gap-1.5">
+                <div className="flex items-center gap-1.5 text-muted text-[10px] uppercase tracking-widest"><Apple size={11} /> Nutrición</div>
+                <div className="flex gap-1">
+                  {LEVEL_OPTIONS.map((lvl) => (
+                    <button key={lvl} onClick={() => updateCheckin(currentCheckin.id, { nutrition_level: lvl })}
+                      title={lvl}
+                      className="w-2.5 h-2.5 rounded-full transition-all"
+                      style={{
+                        background: currentCheckin.nutrition_level === lvl ? LEVEL_COLORS[lvl] : 'var(--color-border)',
+                        outline: currentCheckin.nutrition_level === lvl ? `2px solid ${LEVEL_COLORS[lvl]}40` : 'none',
+                      }} />
+                  ))}
+                </div>
+              </div>
+              {currentCheckin.nutrition_level && (
+                <div className="text-[11px] font-bold mb-2" style={{ color: LEVEL_COLORS[currentCheckin.nutrition_level] }}>{currentCheckin.nutrition_level}</div>
+              )}
+              {(avgKcal != null || avgAdh != null) && (
+                <div className="flex gap-3 mb-2 text-[11px]">
+                  {avgKcal != null && <span className="text-muted">Kcal media: <span className="text-amber font-bold">{avgKcal}</span></span>}
+                  {avgAdh  != null && <span className="text-muted">Adherencia: <span className="text-violet font-bold">{avgAdh}%</span></span>}
+                </div>
+              )}
+              <textarea value={currentCheckin.nutrition_notes || ''} rows={3}
+                onChange={(e) => updateCheckin(currentCheckin.id, { nutrition_notes: e.target.value })}
+                placeholder="Adherencia, puntos débiles, ajustes..."
+                className="bg-transparent text-ink text-sm w-full outline-none resize-none leading-relaxed border-none" />
+            </Card>
+          </div>
+        );
+      })()}
 
       {/* Objetivo del mes */}
       <Card>
@@ -265,6 +348,10 @@ export default function MesClient({ clienteId, clienteName, phases, initialCheck
             <Sparkles size={11} /> PDF exportado automáticamente al cerrar la llamada
           </div>
         )}
+        <textarea value={currentCheckin.call_notes || ''} rows={3}
+          onChange={(e) => updateCheckin(currentCheckin.id, { call_notes: e.target.value })}
+          placeholder="Guion / temas a tratar en la llamada..."
+          className="mt-3 bg-surface border border-border text-ink text-sm w-full outline-none resize-none leading-relaxed rounded-lg px-3 py-2 focus:border-cyan" />
       </Card>
 
       {/* Mediciones corporales */}

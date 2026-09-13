@@ -4,29 +4,41 @@ import { useState, useMemo } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
-import { Flag, TrendingDown, Activity, Footprints, Dumbbell, Star, Check } from 'lucide-react';
+import { Flag, TrendingDown, Activity, Footprints, Dumbbell, Star, Check, Flame } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Card from '@/components/Card';
 import {
   phaseForDate, phaseColor, todayISO, mondayOf, fmtDate, addDaysISO,
+  avgKcalForMonth, avgWeeklyField,
 } from '@/lib/timeline';
 
 const MONTH_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const RANGES      = ['1S','1M','3M','6M','12M','TODO'];
 
 const METRICS = [
-  { key: 'commitment', label: 'Compromiso',      icon: Star,       max: 10,  color: '#FBBF24' },
-  { key: 'training',   label: 'Nivel entrenos',   icon: Dumbbell,   max: 10,  color: '#5ECCFA' },
-  { key: 'steps_avg',  label: 'Pasos/día (media)',icon: Footprints, max: null, color: '#4ADE80' },
-  { key: 'adherence',  label: 'Adherencia dieta', icon: Activity,   max: 100, unit: '%', color: '#A78BFA' },
+  { key: 'commitment', label: 'Compromiso',      icon: Star,       max: 10,    color: '#FBBF24' },
+  { key: 'training',   label: 'Nivel entrenos',   icon: Dumbbell,   max: 10,    color: '#5ECCFA' },
+  { key: 'steps_avg',  label: 'Pasos/día (media)',icon: Footprints, max: 15000, color: '#4ADE80', autoField: 'steps' },
+  { key: 'adherence',  label: 'Adherencia dieta', icon: Activity,   max: 100,   unit: '%', color: '#A78BFA', autoField: 'adherence' },
 ];
 
-function Bar({ value, max, color }) {
-  if (!max || value == null) return null;
+// Gauge circular — versión "pro" del progreso, sustituye a la barra plana
+function RadialGauge({ value, max, color, auto }) {
+  const size = 68, stroke = 6, r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  const pct = max ? Math.max(0, Math.min((value || 0) / max, 1)) : 0;
   return (
-    <div className="flex items-center gap-2 mt-1">
-      <div className="flex-1 h-1.5 rounded-full" style={{ background: 'var(--color-border)' }}>
-        <div className="h-1.5 rounded-full" style={{ width: `${Math.min((value/max)*100,100)}%`, background: color }} />
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size}>
+        <circle cx={size/2} cy={size/2} r={r} stroke="var(--color-border)" strokeWidth={stroke} fill="none" />
+        {value != null && (
+          <circle cx={size/2} cy={size/2} r={r} stroke={color} strokeWidth={stroke} fill="none"
+            strokeDasharray={c} strokeDashoffset={c - pct * c} strokeLinecap="round"
+            transform={`rotate(-90 ${size/2} ${size/2})`} style={{ transition: 'stroke-dashoffset 0.4s ease' }} />
+        )}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-sm font-bold" style={{ color: value != null ? color : 'var(--color-muted)' }}>{value ?? '—'}</span>
+        {auto && value != null && <span className="text-[8px] text-muted -mt-0.5">auto</span>}
       </div>
     </div>
   );
@@ -73,6 +85,17 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
   const thisWeek = weeks.find((w) => w.week_start === currentWeekStart);
   const kcalOn   = thisWeek?.kcal_on ?? thisWeek?.kcal ?? null;
   const kcalOff  = thisWeek?.kcal_off ?? null;
+
+  // Kcal media del mes — sumada/calculada a partir de las semanas del Timeline
+  const currentMonthKey = today.slice(0, 7);
+  const kcalMonthAvg = useMemo(() => avgKcalForMonth(weeks, currentMonthKey), [weeks, currentMonthKey]);
+
+  // Datos "automáticos" calculados desde las notas semanales de Mes actual (evita tener que rellenarlo dos veces)
+  const currentMonthCheckin = checkins.find((c) => c.month === currentMonthKey);
+  const autoFromWeekly = {
+    steps:      avgWeeklyField(currentMonthCheckin?.weekly_notes, 'steps'),
+    adherence:  avgWeeklyField(currentMonthCheckin?.weekly_notes, 'adherence'),
+  };
 
   // Objetivo peso fase
   let goalWeight = null;
@@ -149,6 +172,17 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
             <div className="text-2xl font-bold text-ink">{kcalOn ?? '—'}</div>
           )}
         </div>
+        {/* Kcal media del mes — calculada sumando las semanas del Timeline */}
+        <div className="col-span-2 rounded-xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-muted text-[10px] uppercase tracking-widest"><Flame size={11} /> Kcal media (este mes · timeline)</div>
+            {kcalMonthAvg.weeksCount > 0 && <span className="text-muted text-[10px]">{kcalMonthAvg.weeksCount} semana{kcalMonthAvg.weeksCount !== 1 ? 's' : ''}</span>}
+          </div>
+          <div className="flex items-center gap-4 mt-1">
+            <div className="flex items-baseline gap-1"><span className="text-green text-xl font-bold">{kcalMonthAvg.on ?? '—'}</span><span className="text-muted text-[10px]">on</span></div>
+            <div className="flex items-baseline gap-1"><span className="text-amber text-xl font-bold">{kcalMonthAvg.off ?? '—'}</span><span className="text-muted text-[10px]">off</span></div>
+          </div>
+        </div>
         {/* Fila 3: días en el programa — ocupa full width */}
         <div className="col-span-2 rounded-xl px-4 py-3 flex items-center justify-between"
           style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
@@ -181,20 +215,30 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
             {metricsSaved ? <><Check size={10} /> Guardado</> : 'Guardar'}
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          {METRICS.map((m) => (
-            <div key={m.key}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-muted text-xs"><m.icon size={11} style={{ color: m.color }} />{m.label}</div>
-                <input type="number" min={0} max={m.max || 999999}
-                  value={metrics[m.key] ?? ''}
-                  onChange={(e) => setMetrics((prev) => ({ ...prev, [m.key]: e.target.value === '' ? null : Number(e.target.value) }))}
-                  placeholder="—"
-                  className="w-14 bg-surfaceAlt border border-border text-ink rounded-lg px-2 py-1 text-xs text-right outline-none focus:border-cyan" />
+        <div className="grid grid-cols-2 gap-3">
+          {METRICS.map((m) => {
+            const autoVal   = m.autoField ? autoFromWeekly[m.autoField] : null;
+            const isAuto    = m.autoField && metrics[m.key] == null && autoVal != null;
+            const shownVal  = metrics[m.key] ?? (m.autoField ? autoVal : null);
+            return (
+              <div key={m.key} className="flex items-center gap-3 rounded-xl p-3" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+                <RadialGauge value={shownVal} max={m.max} color={m.color} auto={isAuto} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 text-muted text-[11px] mb-1"><m.icon size={11} style={{ color: m.color }} />{m.label}</div>
+                  <input type="number" min={0} max={m.max || 999999}
+                    value={metrics[m.key] ?? ''}
+                    onChange={(e) => setMetrics((prev) => ({ ...prev, [m.key]: e.target.value === '' ? null : Number(e.target.value) }))}
+                    placeholder={isAuto ? `${autoVal} (auto)` : '—'}
+                    className="w-full bg-surfaceAlt border border-border text-ink rounded-lg px-2 py-1 text-xs outline-none focus:border-cyan" />
+                  {m.autoField && (
+                    <div className="text-[9px] text-muted mt-0.5">
+                      {autoVal != null ? `Calculado desde Mes actual: ${autoVal}${m.unit || ''}. Escribe aquí para sobreescribir.` : 'Se calculará solo al rellenar Mes actual.'}
+                    </div>
+                  )}
+                </div>
               </div>
-              <Bar value={metrics[m.key]} max={m.max} color={m.color} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
 

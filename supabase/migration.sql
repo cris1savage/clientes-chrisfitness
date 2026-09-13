@@ -29,3 +29,14 @@ where read_token is null;
 -- Política de lectura pública para la ruta /ver/:token
 -- Permite leer activos y sus checkins a cualquiera que tenga el token
 -- (Las políticas RLS actuales ya permiten lectura autenticada; esto añade lectura anon por token)
+
+-- ============================================================
+-- 4. Nuevas columnas: guion de llamada + nivel de entrenamiento/nutrición
+-- ============================================================
+alter table public.client_checkins
+  add column if not exists call_notes      text,
+  add column if not exists training_level  text,
+  add column if not exists nutrition_level text;
+
+-- Nota: weekly_notes ya es jsonb, así que los nuevos campos por semana
+-- (steps, kcal_avg, adherence) no requieren migración de columnas.

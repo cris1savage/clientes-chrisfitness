@@ -4,13 +4,14 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search, Plus, LogOut, TrendingDown, TrendingUp, Minus,
-  ChevronRight, AlertTriangle, Bell, Calendar, Users, CheckCircle,
+  ChevronRight, AlertTriangle, Bell, Calendar, Users, CheckCircle, Phone, Check as CheckIcon,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { phaseColor, todayISO, mondayOf, addDaysISO } from '@/lib/timeline';
 import NuevoClienteModal from './NuevoClienteModal';
 import Logo from './Logo';
 import BuscadorGlobal from './BuscadorGlobal';
+import InstallAppButton from './InstallAppButton';
 
 /* ─── helpers ─────────────────────────────────────────────── */
 function getLatestWeight(c) {
@@ -72,9 +73,29 @@ const GOAL_COLOR = { Cumplido: '#4ADE80', Parcial: '#FBBF24', 'No cumplido': '#F
 /* ─── componente principal ───────────────────────────────── */
 export default function ClientesListClient({ clientes }) {
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
   const [search,    setSearch]    = useState('');
   const [showNuevo, setShowNuevo] = useState(false);
-  const [view,      setView]      = useState('lista'); // 'lista' | 'alertas' | 'semana'
+  const [view,      setView]      = useState('lista'); // 'lista' | 'alertas' | 'semana' | 'llamadas'
+
+  // Notas/guion de llamada — estado local editable, se guarda en client_checkins.call_notes
+  const [callNotes, setCallNotes] = useState(() => {
+    const map = {};
+    clientes.forEach((c) => (c.client_checkins || []).forEach((ch) => { if (ch.call_notes != null) map[ch.id] = ch.call_notes; }));
+    return map;
+  });
+  const [savedNoteId, setSavedNoteId] = useState(null);
+
+  const saveCallNote = async (checkinId, value) => {
+    await supabase.from('client_checkins').update({ call_notes: value }).eq('id', checkinId);
+    setSavedNoteId(checkinId);
+    setTimeout(() => setSavedNoteId((id) => id === checkinId ? null : id), 1500);
+  };
+
+  const toggleCallDone = async (checkinId, current) => {
+    await supabase.from('client_checkins').update({ call_done: !current }).eq('id', checkinId);
+    router.refresh();
+  };
 
   const today       = todayISO();
   const thisMonth   = today.slice(0, 7);
@@ -122,6 +143,19 @@ export default function ClientesListClient({ clientes }) {
     return { c, week, realW, targetW, diff };
   }), [clientes, thisWeekStart]);
 
+  /* ── llamadas programadas (todas las que tienen fecha) ── */
+  const llamadas = useMemo(() => {
+    const out = [];
+    clientes.forEach((c) => {
+      (c.client_checkins || []).forEach((ch) => {
+        if (ch.call_date) out.push({ cliente: c, checkin: ch });
+      });
+    });
+    return out.sort((a, b) => a.checkin.call_date.localeCompare(b.checkin.call_date));
+  }, [clientes]);
+  const proximasLlamadas = llamadas.filter((l) => !l.checkin.call_done && l.checkin.call_date >= today);
+  const pasadasLlamadas  = llamadas.filter((l) => l.checkin.call_done || l.checkin.call_date < today).reverse();
+
   /* ── lista filtrada ── */
   const filtered = useMemo(() =>
     clientes.filter((c) => c.name.toLowerCase().includes(search.toLowerCase())),
@@ -147,6 +181,7 @@ export default function ClientesListClient({ clientes }) {
           </div>
           <div className="flex items-center gap-2">
             <BuscadorGlobal clientes={clientes} />
+            <InstallAppButton />
             <button onClick={() => setShowNuevo(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold"
               style={{ background: 'var(--color-violet)', color: '#0D0A1F' }}>
@@ -161,9 +196,10 @@ export default function ClientesListClient({ clientes }) {
         {/* ── Tabs de vista ── */}
         <div className="max-w-4xl mx-auto px-4 flex gap-1 pb-0 overflow-x-auto">
           {[
-            { key: 'lista',   label: 'Clientes',  icon: Users    },
-            { key: 'alertas', label: `Alertas${alertas.length ? ` (${alertas.length})` : ''}`, icon: Bell },
-            { key: 'semana',  label: 'Esta semana', icon: Calendar },
+            { key: 'lista',    label: 'Clientes',  icon: Users    },
+            { key: 'alertas',  label: `Alertas${alertas.length ? ` (${alertas.length})` : ''}`, icon: Bell },
+            { key: 'llamadas', label: `Llamadas${proximasLlamadas.length ? ` (${proximasLlamadas.length})` : ''}`, icon: Phone },
+            { key: 'semana',   label: 'Esta semana', icon: Calendar },
           ].map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setView(key)}
               className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors"
@@ -359,6 +395,94 @@ export default function ClientesListClient({ clientes }) {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ══════════════ VISTA LLAMADAS ══════════════ */}
+        {view === 'llamadas' && (
+          <>
+            {llamadas.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <Phone size={36} className="text-muted opacity-50" />
+                <div className="text-ink font-semibold">No hay llamadas programadas</div>
+                <div className="text-muted text-sm text-center">Programa la fecha de la videollamada mensual desde la pestaña "Mes actual" de cada cliente.</div>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {/* Próximas */}
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5 text-cyan">
+                    <Phone size={10} /> Próximas ({proximasLlamadas.length})
+                  </div>
+                  {proximasLlamadas.length === 0 ? (
+                    <div className="text-muted text-xs px-1">No hay llamadas próximas pendientes.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {proximasLlamadas.map(({ cliente: c, checkin: ch }) => {
+                        const d = daysUntil(ch.call_date);
+                        const dLabel = d === 0 ? 'HOY' : d === 1 ? 'MAÑANA' : `en ${d} días`;
+                        const col = d <= 1 ? '#F87171' : d <= 3 ? '#FBBF24' : '#5ECCFA';
+                        return (
+                          <div key={ch.id} className="rounded-xl p-4" style={{ background: 'var(--color-surface)', border: `1px solid ${col}28` }}>
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <button onClick={() => router.push(`/clientes/${c.id}/mes`)} className="flex items-center gap-3 flex-1 text-left min-w-0">
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                                  style={{ background: `${col}20`, color: col }}>
+                                  {c.name?.[0]?.toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-ink text-sm font-semibold truncate">{c.name}</div>
+                                  <div className="text-xs mt-0.5" style={{ color: col }}>{dLabel} · {ch.call_date}</div>
+                                </div>
+                              </button>
+                              <button onClick={() => toggleCallDone(ch.id, ch.call_done)}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold shrink-0"
+                                style={{ border: '1px solid var(--color-border)', color: 'var(--color-muted)' }}>
+                                <CheckIcon size={10} /> Marcar hecha
+                              </button>
+                            </div>
+                            <textarea
+                              defaultValue={callNotes[ch.id] || ''}
+                              onChange={(e) => setCallNotes((m) => ({ ...m, [ch.id]: e.target.value }))}
+                              onBlur={(e) => saveCallNote(ch.id, e.target.value)}
+                              placeholder="Guion / notas de qué hablar en esta llamada..."
+                              rows={2}
+                              className="w-full bg-surfaceAlt border border-border text-ink text-xs rounded-lg px-2.5 py-2 outline-none focus:border-cyan resize-none leading-relaxed" />
+                            {savedNoteId === ch.id && <div className="text-[10px] text-green mt-1">Guardado</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Pasadas / realizadas recientes */}
+                {pasadasLlamadas.length > 0 && (
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest mb-2 flex items-center gap-1.5 text-muted">
+                      Historial reciente ({pasadasLlamadas.length})
+                    </div>
+                    <div className="space-y-1.5">
+                      {pasadasLlamadas.slice(0, 15).map(({ cliente: c, checkin: ch }) => (
+                        <button key={ch.id} onClick={() => router.push(`/clientes/${c.id}/mes`)}
+                          className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left"
+                          style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                            style={{ background: ch.call_done ? '#4ADE8020' : '#F8717120', color: ch.call_done ? 'var(--color-green)' : 'var(--color-red)' }}>
+                            {c.name?.[0]?.toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-ink text-xs font-semibold truncate">{c.name}</div>
+                            <div className="text-muted text-[10px]">{ch.call_date} · {ch.call_done ? 'Realizada' : 'No realizada'}</div>
+                          </div>
+                          <ChevronRight size={13} className="text-muted shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </>
