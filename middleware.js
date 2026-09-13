@@ -1,57 +1,43 @@
-import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 
+// Middleware simplificado — solo gestiona cookies de sesión de Supabase
+// sin depender de @supabase/ssr en el Edge Runtime
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
 
-  // Rutas públicas — no requieren sesión
-  if (pathname.startsWith('/ver/')) {
+  // Rutas públicas
+  if (
+    pathname.startsWith('/ver/') ||
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/api/') ||
+    pathname.includes('.')
+  ) {
     return NextResponse.next();
   }
 
-  let response = NextResponse.next({ request });
+  // Leer la cookie de sesión de Supabase directamente
+  const cookieName = request.cookies
+    .getAll()
+    .find((c) => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'))?.name;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
+  const hasSession = !!cookieName;
   const isAuthRoute = pathname.startsWith('/login');
 
-  if (!user && !isAuthRoute) {
+  if (!hasSession && !isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthRoute) {
+  if (hasSession && isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/clientes';
     return NextResponse.redirect(url);
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };
