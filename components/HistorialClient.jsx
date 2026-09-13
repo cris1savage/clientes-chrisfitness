@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Calendar } from 'lucide-react';
-import { monthLabelFull, STRENGTH_COLOR, GOAL_COLORS } from '@/lib/timeline';
+import { monthLabelFull, STRENGTH_COLOR, GOAL_COLORS, todayISO } from '@/lib/timeline';
 
 export default function HistorialClient({ clienteId, checkins }) {
-  const currentMonth = new Date().toISOString().slice(0, 7);
+  const currentMonth = todayISO().slice(0, 7);
   const past         = checkins.filter((c) => c.month < currentMonth);
   const [expanded, setExpanded] = useState(null);
 

@@ -405,12 +405,16 @@ export default function MesClient({ clienteId, clienteName, phases, initialCheck
                       </div>
                     </div>
                   </div>
-                  {kcalMediaW != null && (
+                  {kcalMediaW != null ? (
                     <div className="text-[10px] text-muted pt-1 border-t border-border">
                       Media: <span className="text-amber font-bold">{kcalMediaW} kcal/día</span>
                       {w.dias_on != null && <span className="ml-1">({w.dias_on}d on · {diasOff}d off)</span>}
                     </div>
-                  )}
+                  ) : (w.kcal_on != null && w.kcal_off != null) ? (
+                    <div className="text-[10px] text-muted pt-1 border-t border-border">
+                      Rellena los <span className="text-amber font-semibold">días ON</span> para calcular la media semanal
+                    </div>
+                  ) : null}
                 </div>
 
                 {/* Macros ON */}
