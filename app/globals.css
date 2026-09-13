@@ -1,0 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg:         #050708;
+  --color-surface:    #0E1214;
+  --color-surfaceAlt: #151A1D;
+  --color-border:     #212729;
+  --color-cyan:       #5ECCFA;
+  --color-cyanDim:    #3A9CC4;
+  --color-muted:      #7C878B;
+  --color-ink:        #F2F6F7;
+  --color-green:      #4ADE80;
+  --color-amber:      #FBBF24;
+  --color-red:        #F87171;
+  --color-violet:     #A78BFA;
+}
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: 'Inter', sans-serif;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 99px; }
