@@ -5,7 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { MEASUREMENTS } from '@/lib/timeline';
-import MuñecoMedidas from '@/components/MuñecoMedidas';
+import MunecoMedidas from '@/components/MunecoMedidas';
 
 const MONTH_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
@@ -65,7 +65,7 @@ export default function MedidasClient({ checkins }) {
           <div className="text-muted text-[10px] uppercase tracking-widest mb-3">
             Pulsa un punto para ver el detalle
           </div>
-          <MuñecoMedidas
+          <MunecoMedidas
             measurements={currentVals}
             prevMeasurements={prevVals}
             onSelect={(key) => setSelected(key)}
