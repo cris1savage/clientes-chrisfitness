@@ -67,6 +67,7 @@ export default function NuevoClienteModal({ onClose }) {
 
   const handleCreate = async () => {
     setSaving(true);
+    setErr('');
     const sb = createClient();
 
     const { data: cliente, error } = await sb
@@ -80,17 +81,25 @@ export default function NuevoClienteModal({ onClose }) {
       .select()
       .single();
 
-    if (error) { setSaving(false); setErr('Error al crear el cliente.'); return; }
+    if (error) {
+      setSaving(false);
+      setErr('No se pudo crear el cliente. Comprueba tu conexión e inténtalo de nuevo.');
+      return;
+    }
 
     // Si hay peso inicial, crear el checkin del mes actual
     if (startWeight && !isNaN(Number(startWeight))) {
-      const currentMonth = today.slice(0, 7);
-      await sb.from('client_checkins').insert({
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const { error: checkinErr } = await sb.from('client_checkins').insert({
         active_client_id: cliente.id,
         month: currentMonth,
         weight: Number(startWeight),
-        phase: phases.find((p) => today >= p.start_date && today <= p.end_date)?.name || null,
+        phase: phases.find((p) => {
+          const today = new Date().toISOString().slice(0, 10);
+          return today >= p.start_date && today <= p.end_date;
+        })?.name || null,
       });
+      if (checkinErr) console.warn('Error creando checkin inicial:', checkinErr.message);
     }
 
     setSaving(false);

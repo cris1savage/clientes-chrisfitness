@@ -9,6 +9,8 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { phaseColor, todayISO, mondayOf, addDaysISO } from '@/lib/timeline';
 import NuevoClienteModal from './NuevoClienteModal';
+import Logo from './Logo';
+import BuscadorGlobal from './BuscadorGlobal';
 
 /* ─── helpers ─────────────────────────────────────────────── */
 function getLatestWeight(c) {
@@ -78,27 +80,38 @@ export default function ClientesListClient({ clientes }) {
   const thisMonth   = today.slice(0, 7);
   const thisWeekStart = mondayOf(today);
 
+  // Alertas silenciadas — persisten en sessionStorage para esta sesión
+  const [silenced, setSilenced] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('cf_silenced') || '{}'); } catch { return {}; }
+  });
+  const silence = (key) => {
+    const next = { ...silenced, [key]: Date.now() };
+    setSilenced(next);
+    try { sessionStorage.setItem('cf_silenced', JSON.stringify(next)); } catch {}
+  };
+  const isSilenced = (key) => !!silenced[key];
+
   /* ── alertas ── */
   const alertas = useMemo(() => {
     const out = [];
     clientes.forEach((c) => {
       const dias = daysSinceWeight(c);
-      if (dias > 14) out.push({ tipo: 'sin_peso', cliente: c, valor: dias });
+      if (dias > 14 && !isSilenced(`peso_${c.id}`)) out.push({ tipo: 'sin_peso', cliente: c, valor: dias, silenceKey: `peso_${c.id}` });
 
       const call = nextCall(c);
       if (call) {
         const d = daysUntil(call);
-        if (d <= 3) out.push({ tipo: 'llamada', cliente: c, valor: call, dias: d });
+        if (d <= 3 && !isSilenced(`call_${c.id}`)) out.push({ tipo: 'llamada', cliente: c, valor: call, dias: d, silenceKey: `call_${c.id}` });
       }
 
       const gs = getGoalStatus(c);
-      if (gs === 'No cumplido') out.push({ tipo: 'objetivo', cliente: c });
+      if (gs === 'No cumplido' && !isSilenced(`obj_${c.id}`)) out.push({ tipo: 'objetivo', cliente: c, silenceKey: `obj_${c.id}` });
 
       const hasMonth = (c.client_checkins || []).some((x) => x.month === thisMonth);
-      if (!hasMonth) out.push({ tipo: 'sin_mes', cliente: c });
+      if (!hasMonth && !isSilenced(`mes_${c.id}`)) out.push({ tipo: 'sin_mes', cliente: c, silenceKey: `mes_${c.id}` });
     });
     return out;
-  }, [clientes, thisMonth]);
+  }, [clientes, thisMonth, silenced]);
 
   /* ── parte semanal ── */
   const semana = useMemo(() => clientes.map((c) => {
@@ -125,11 +138,15 @@ export default function ClientesListClient({ clientes }) {
       {/* ── HEADER ── */}
       <header className="sticky top-0 z-20 border-b border-border bg-bg/90 backdrop-blur">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <div>
-            <div className="font-display text-ink text-xl tracking-wide leading-none">CF CLIENTES</div>
-            <div className="text-violet text-[10px] tracking-widest uppercase mt-0.5">Seguimiento · Chris Fitness</div>
+          <div className="flex items-center gap-2.5">
+            <Logo size={30} className="text-cyan shrink-0" />
+            <div>
+              <div className="font-display text-ink text-[17px] tracking-wide leading-none">CHRIS FITNESS</div>
+              <div className="text-violet text-[9px] tracking-widest uppercase mt-0.5">Panel de seguimiento</div>
+            </div>
           </div>
           <div className="flex items-center gap-2">
+            <BuscadorGlobal clientes={clientes} />
             <button onClick={() => setShowNuevo(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold"
               style={{ background: 'var(--color-violet)', color: '#0D0A1F' }}>
@@ -166,18 +183,34 @@ export default function ClientesListClient({ clientes }) {
         {view === 'lista' && (
           <>
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: 'Activos',           value: clientes.length },
-                { label: 'Objetivo cumplido', value: clientes.filter((c) => getGoalStatus(c) === 'Cumplido').length },
-                { label: 'Sin mes actual',    value: clientes.filter((c) => !(c.client_checkins || []).some((x) => x.month === thisMonth)).length },
-              ].map((s) => (
-                <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
-                  <div className="text-ink text-xl font-bold">{s.value}</div>
-                  <div className="text-muted text-[10px] mt-0.5">{s.label}</div>
+            {(() => {
+              const sinMes = clientes.filter((c) => !(c.client_checkins || []).some((x) => x.month === thisMonth));
+              return (
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-xl p-3 text-center" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
+                    <div className="text-ink text-xl font-bold">{clientes.length}</div>
+                    <div className="text-muted text-[10px] mt-0.5">Activos</div>
+                  </div>
+                  <div className="rounded-xl p-3 text-center" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
+                    <div className="text-xl font-bold text-green">{clientes.filter((c) => getGoalStatus(c) === 'Cumplido').length}</div>
+                    <div className="text-muted text-[10px] mt-0.5">Objetivo cumplido</div>
+                  </div>
+                  <button
+                    onClick={() => sinMes.length > 0 && setView('alertas')}
+                    className="rounded-xl p-3 text-center transition-all"
+                    style={{
+                      background: sinMes.length > 0 ? 'rgba(167,139,250,0.1)' : 'var(--color-surfaceAlt)',
+                      border: `1px solid ${sinMes.length > 0 ? 'var(--color-violet)' : 'var(--color-border)'}`,
+                    }}
+                  >
+                    <div className="text-xl font-bold" style={{ color: sinMes.length > 0 ? 'var(--color-violet)' : 'var(--color-ink)' }}>{sinMes.length}</div>
+                    <div className="text-[10px] mt-0.5" style={{ color: sinMes.length > 0 ? 'var(--color-violet)' : 'var(--color-muted)' }}>
+                      {sinMes.length > 0 ? 'Ver alertas →' : 'Al día'}
+                    </div>
+                  </button>
                 </div>
-              ))}
-            </div>
+              );
+            })()}
 
             {/* Buscador */}
             <div className="relative">
@@ -301,19 +334,26 @@ export default function ClientesListClient({ clientes }) {
                       </div>
                       <div className="space-y-1.5 mb-4">
                         {grupo.map((a, i) => (
-                          <button key={i} onClick={() => router.push(deepLink(a))}
-                            className="w-full text-left rounded-xl px-4 py-3 flex items-center gap-3"
+                          <div key={i} className="rounded-xl px-4 py-3 flex items-center gap-3"
                             style={{ background: 'var(--color-surface)', border: `1px solid ${color}28` }}>
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                              style={{ background: `${color}20`, color }}>
-                              {a.cliente.name?.[0]?.toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-ink text-sm font-semibold">{a.cliente.name}</div>
-                              <div className="text-muted text-xs mt-0.5">{render(a)}</div>
-                            </div>
-                            <ChevronRight size={14} className="text-muted shrink-0" />
-                          </button>
+                            <button onClick={() => router.push(deepLink(a))} className="flex items-center gap-3 flex-1 text-left">
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                                style={{ background: `${color}20`, color }}>
+                                {a.cliente.name?.[0]?.toUpperCase()}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-ink text-sm font-semibold">{a.cliente.name}</div>
+                                <div className="text-muted text-xs mt-0.5">{render(a)}</div>
+                              </div>
+                              <ChevronRight size={14} className="text-muted shrink-0" />
+                            </button>
+                            <button
+                              onClick={() => silence(a.silenceKey)}
+                              title="Ignorar hasta la próxima sesión"
+                              className="text-muted text-[10px] px-2 py-1 rounded-lg shrink-0 hover:text-ink transition-colors"
+                              style={{ border: '1px solid var(--color-border)' }}
+                            >✕</button>
+                          </div>
                         ))}
                       </div>
                     </div>

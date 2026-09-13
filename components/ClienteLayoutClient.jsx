@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { ArrowLeft, BarChart2, Calendar, GitBranch, BookOpen, Layers, Copy, Check } from 'lucide-react';
 import { phaseColor, readToken } from '@/lib/timeline';
+import Logo from '@/components/Logo';
 
 const TABS = [
   { key: 'resumen',   label: 'Resumen',    icon: BarChart2 },
@@ -31,19 +32,16 @@ export default function ClienteLayoutClient({ cliente, children }) {
     const url = `${window.location.origin}/ver/${token}`;
     try {
       await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
     } catch {
-      // fallback para móvil
       const el = document.createElement('textarea');
       el.value = url;
       document.body.appendChild(el);
       el.select();
       document.execCommand('copy');
       document.body.removeChild(el);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
     }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
   };
 
   return (
@@ -53,8 +51,12 @@ export default function ClienteLayoutClient({ cliente, children }) {
 
           {/* Fila nombre */}
           <div className="flex items-center gap-3 py-3">
-            <button onClick={() => router.push('/clientes')} className="text-muted hover:text-ink shrink-0 transition-colors">
-              <ArrowLeft size={18} />
+            <button
+              onClick={() => { router.push('/clientes'); router.refresh(); }}
+              className="text-muted hover:text-ink shrink-0 transition-colors flex items-center gap-1.5"
+            >
+              <ArrowLeft size={16} />
+              <Logo size={18} className="text-cyan" />
             </button>
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
               style={{ background: `${color}20`, color, border: `1px solid ${color}` }}>
@@ -70,11 +72,9 @@ export default function ClienteLayoutClient({ cliente, children }) {
               <span className="text-xs font-bold px-2.5 py-1 rounded-lg shrink-0"
                 style={{ background: `${color}18`, color }}>{phase.name}</span>
             )}
-
-            {/* Botón copiar enlace del cliente */}
             <button
               onClick={copyLink}
-              title={copied ? '¡Enlace copiado!' : 'Copiar enlace del cliente'}
+              title={copied ? '¡Copiado!' : 'Copiar enlace del cliente'}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all"
               style={{
                 background: copied ? '#4ADE8018' : 'var(--color-surfaceAlt)',
@@ -87,7 +87,7 @@ export default function ClienteLayoutClient({ cliente, children }) {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-0 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-0 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
             {TABS.map((t) => {
               const Icon     = t.icon;
               const isActive = activeTab === t.key;

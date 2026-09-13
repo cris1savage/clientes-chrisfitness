@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import Logo from '@/components/Logo';
 
 export default function LoginPage() {
   const router  = useRouter();
@@ -47,9 +48,15 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-bg">
       <div className="w-full max-w-sm space-y-4">
-        <div className="text-center mb-2">
-          <div className="font-display text-ink text-[32px] tracking-wide">CHRIS FITNESS</div>
-          <div className="text-violet text-xs tracking-[2px] uppercase">Seguimiento de Clientes</div>
+        <div className="text-center mb-4">
+          <div className="flex justify-center mb-3">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
+              <Logo size={40} className="text-cyan" />
+            </div>
+          </div>
+          <div className="font-display text-ink text-2xl tracking-wide">CHRIS FITNESS</div>
+          <div className="text-violet text-[10px] tracking-[3px] uppercase mt-1">Panel de seguimiento</div>
         </div>
 
         {!needsMfa ? (

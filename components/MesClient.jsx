@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, Video, Check, X, FileDown, Loader2, Trash2, Ruler, Dumbbell, Apple, Clock, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Card from '@/components/Card';
@@ -12,6 +13,7 @@ import { downloadCheckinPDF } from '@/lib/pdf';
 
 export default function MesClient({ clienteId, clienteName, phases, initialCheckins }) {
   const supabase = useMemo(() => createClient(), []);
+  const router   = useRouter();
   const [checkins,          setCheckins]          = useState(initialCheckins);
   const [measurementsDraft, setMeasurementsDraft] = useState(null);
   const [measurementsSaved, setMeasurementsSaved] = useState(false);
@@ -32,7 +34,7 @@ export default function MesClient({ clienteId, clienteName, phases, initialCheck
       phase,
       weekly_notes: defaultWeeklyNotes(currentMonth),
     }).select().single();
-    if (data) setCheckins((cs) => [data, ...cs]);
+    if (data) { setCheckins((cs) => [data, ...cs]); router.refresh(); }
   };
 
   const updateCheckin = async (id, patch) => {

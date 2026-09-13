@@ -44,10 +44,16 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
   const [metrics,       setMetrics]       = useState(cliente.tracking_metrics || {});
   const [metricsSaved,  setMetricsSaved]  = useState(false);
 
-  const today          = todayISO();
+  const today            = todayISO();
   const currentWeekStart = mondayOf(today);
   const currentPhaseObj  = phaseForDate(phases, today);
   const currentPhaseName = currentPhaseObj?.name;
+
+  // Días en el programa desde la fecha de inicio del cliente
+  const startDate  = cliente.start_date || null;
+  const diasPrograma = startDate
+    ? Math.floor((new Date(today) - new Date(startDate)) / 86400000)
+    : null;
 
   // Pesos
   const sorted   = [...checkins].sort((a,b) => a.month.localeCompare(b.month));
@@ -110,31 +116,28 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
   return (
     <div className="space-y-4">
 
-      {/* ── 4 cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {[
-          {
-            label: 'Peso actual',
-            val:   currentWeight != null ? `${currentWeight} kg` : '—',
-            color: 'var(--color-cyan)',
-          },
-          {
-            label: 'Desde el inicio',
-            val:   weightDiff != null ? `${weightDiff > 0 ? '+' : ''}${weightDiff} kg` : '—',
-            color: weightDiff == null ? 'var(--color-muted)' : weightDiff < 0 ? 'var(--color-green)' : 'var(--color-red)',
-          },
-          {
-            label: 'Fase',
-            val:   currentPhaseName || '—',
-            color: currentPhaseName ? phaseColor(phases, currentPhaseName) : 'var(--color-muted)',
-          },
-        ].map((s) => (
-          <div key={s.label} className="rounded-xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
-            <div className="text-muted text-[10px] uppercase tracking-widest mb-1">{s.label}</div>
-            <div className="text-2xl font-bold leading-tight" style={{ color: s.color }}>{s.val}</div>
+      {/* ── 5 cards ── */}
+      <div className="grid grid-cols-2 gap-2">
+        {/* Fila 1: peso + diferencia */}
+        <div className="rounded-xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
+          <div className="text-muted text-[10px] uppercase tracking-widest mb-1">Peso actual</div>
+          <div className="text-2xl font-bold leading-tight text-cyan">
+            {currentWeight != null ? `${currentWeight} kg` : '—'}
           </div>
-        ))}
-        {/* Kcal */}
+        </div>
+        <div className="rounded-xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
+          <div className="text-muted text-[10px] uppercase tracking-widest mb-1">Desde el inicio</div>
+          <div className="text-2xl font-bold leading-tight" style={{ color: weightDiff == null ? 'var(--color-muted)' : weightDiff < 0 ? 'var(--color-green)' : 'var(--color-red)' }}>
+            {weightDiff != null ? `${weightDiff > 0 ? '+' : ''}${weightDiff} kg` : '—'}
+          </div>
+        </div>
+        {/* Fila 2: fase + kcal */}
+        <div className="rounded-xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
+          <div className="text-muted text-[10px] uppercase tracking-widest mb-1">Fase</div>
+          <div className="text-2xl font-bold leading-tight" style={{ color: currentPhaseName ? phaseColor(phases, currentPhaseName) : 'var(--color-muted)' }}>
+            {currentPhaseName || '—'}
+          </div>
+        </div>
         <div className="rounded-xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
           <div className="text-muted text-[10px] uppercase tracking-widest mb-1">Kcal semana</div>
           {kcalOff != null ? (
@@ -145,6 +148,24 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
           ) : (
             <div className="text-2xl font-bold text-ink">{kcalOn ?? '—'}</div>
           )}
+        </div>
+        {/* Fila 3: días en el programa — ocupa full width */}
+        <div className="col-span-2 rounded-xl px-4 py-3 flex items-center justify-between"
+          style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
+          <div className="text-muted text-[10px] uppercase tracking-widest">En el programa</div>
+          <div className="flex items-baseline gap-2">
+            {diasPrograma != null ? (
+              <>
+                <span className="text-violet text-xl font-bold">{diasPrograma}</span>
+                <span className="text-muted text-xs">días</span>
+                <span className="text-muted text-xs">·</span>
+                <span className="text-violet text-sm font-semibold">{Math.floor(diasPrograma / 7)} semanas</span>
+                {startDate && <span className="text-muted text-xs ml-1">desde {startDate}</span>}
+              </>
+            ) : (
+              <span className="text-muted text-sm">—</span>
+            )}
+          </div>
         </div>
       </div>
 
