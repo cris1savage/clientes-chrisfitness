@@ -2,16 +2,15 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Video, Check, X, FileDown, Loader2, Trash2, Ruler, Dumbbell, Apple, Clock, Sparkles, Footprints, Flame, Percent } from 'lucide-react';
+import { Plus, Video, Check, X, FileDown, Loader2, Trash2, Ruler, Dumbbell, Apple, Clock, Sparkles, Footprints, Percent } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Card from '@/components/Card';
 import {
   phaseForDate, phaseColor, PHASE_NAMES, todayISO, defaultWeeklyNotes,
   MEASUREMENTS, WEEK_STRENGTHS, STRENGTH_COLOR, GOAL_STATUSES, GOAL_COLORS, monthLabelFull,
-  weekRangeLabel, avgWeeklyField, WEEK_METRICS, LEVEL_OPTIONS, LEVEL_COLORS,
+  weekRangeLabel, avgWeeklyField, LEVEL_OPTIONS, LEVEL_COLORS,
+  calcKcalMedia, calcKcalFromMacros,
 } from '@/lib/timeline';
-
-const WEEK_METRIC_ICONS = { steps: Footprints, kcal_avg: Flame, adherence: Percent };
 import { downloadCheckinPDF } from '@/lib/pdf';
 
 export default function MesClient({ clienteId, clienteName, phases, initialCheckins }) {
@@ -163,12 +162,22 @@ export default function MesClient({ clienteId, clienteName, phases, initialCheck
           <Clock size={11} /> Semana a semana
         </div>
         <div className="space-y-5">
-          {(currentCheckin.weekly_notes?.length ? currentCheckin.weekly_notes : defaultWeeklyNotes(currentCheckin.month)).map((w, i) => (
-            <div key={i} className="flex items-start gap-3 pb-4 last:pb-0" style={{ borderBottom: i < 3 ? '1px solid var(--color-border)' : 'none' }}>
-              <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: STRENGTH_COLOR[w.strength] || 'var(--color-border)' }} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
-                  <span className="text-ink text-sm font-semibold">{weekRangeLabel(currentCheckin.month, i)}</span>
+          {(currentCheckin.weekly_notes?.length ? currentCheckin.weekly_notes : defaultWeeklyNotes(currentCheckin.month)).map((w, i) => {
+            // Calcular kcal media automática
+            const kcalMedia = calcKcalMedia(w.kcal_on, w.kcal_off, w.dias_on);
+            // Calcular kcal desde macros si no hay kcal directa
+            const kcalMacros = calcKcalFromMacros(w.protein, w.carbs, w.fat);
+            const kcalTotal  = kcalMedia ?? kcalMacros;
+            const diasOff    = w.dias_on != null ? 7 - Number(w.dias_on) : null;
+
+            return (
+              <div key={i} className="pb-5 last:pb-0" style={{ borderBottom: i < 3 ? '1px solid var(--color-border)' : 'none' }}>
+                {/* Cabecera semana */}
+                <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: STRENGTH_COLOR[w.strength] || 'var(--color-border)' }} />
+                    <span className="text-ink text-sm font-semibold">{weekRangeLabel(currentCheckin.month, i)}</span>
+                  </div>
                   <div className="flex gap-1">
                     {WEEK_STRENGTHS.map((s) => (
                       <button key={s} onClick={() => updateWeekNote(currentCheckin, i, { strength: s })}
@@ -182,44 +191,140 @@ export default function MesClient({ clienteId, clienteName, phases, initialCheck
                     ))}
                   </div>
                 </div>
+
+                {/* Nota libre */}
                 <input value={w.note || ''} onChange={(e) => updateWeekNote(currentCheckin, i, { note: e.target.value })}
                   placeholder="Nota de esta semana..."
-                  className="text-muted text-sm bg-transparent border-none outline-none w-full mb-2.5" />
-                {/* Datos de valor: pasos, kcal media, adherencia */}
-                <div className="grid grid-cols-3 gap-2">
-                  {WEEK_METRICS.map((m) => {
-                    const Icon = WEEK_METRIC_ICONS[m.key];
-                    return (
-                      <div key={m.key} className="rounded-lg px-2.5 py-1.5" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
-                        <div className="flex items-center gap-1 text-muted text-[9px] uppercase tracking-widest mb-0.5">
-                          <Icon size={9} style={{ color: m.color }} /> {m.label}
-                        </div>
-                        <div className="flex items-baseline gap-0.5">
-                          <input type="number" value={w[m.key] ?? ''} placeholder="—"
-                            onChange={(e) => updateWeekNote(currentCheckin, i, { [m.key]: e.target.value === '' ? null : Number(e.target.value) })}
-                            className="bg-transparent text-sm font-bold outline-none w-full" style={{ color: m.color }} />
-                          {m.unit && w[m.key] != null && <span className="text-[10px] font-semibold" style={{ color: m.color }}>{m.unit}</span>}
-                        </div>
+                  className="text-muted text-sm bg-transparent border-none outline-none w-full mb-3" />
+
+                {/* Fila 1: Pasos + Kcal ON + Kcal OFF + Días ON */}
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  {/* Pasos */}
+                  <div className="rounded-lg px-3 py-2" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+                    <div className="text-muted text-[9px] uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <Footprints size={9} style={{ color: '#4ADE80' }} /> Pasos/día
+                    </div>
+                    <input type="number" value={w.steps ?? ''} placeholder="—"
+                      onChange={(e) => updateWeekNote(currentCheckin, i, { steps: e.target.value === '' ? null : Number(e.target.value) })}
+                      className="bg-transparent text-sm font-bold outline-none w-full text-green border-none" />
+                  </div>
+
+                  {/* Adherencia */}
+                  <div className="rounded-lg px-3 py-2" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+                    <div className="text-muted text-[9px] uppercase tracking-widest mb-1 flex items-center gap-1">
+                      <Percent size={9} style={{ color: '#A78BFA' }} /> Adherencia
+                    </div>
+                    <div className="flex items-baseline gap-0.5">
+                      <input type="number" min="0" max="100" value={w.adherence ?? ''} placeholder="—"
+                        onChange={(e) => updateWeekNote(currentCheckin, i, { adherence: e.target.value === '' ? null : Number(e.target.value) })}
+                        className="bg-transparent text-sm font-bold outline-none w-full text-violet border-none" />
+                      {w.adherence != null && <span className="text-violet text-xs font-bold">%</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Kcal ON / OFF / Días ON */}
+                <div className="rounded-xl p-3 mb-2" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+                  <div className="text-muted text-[9px] uppercase tracking-widest mb-2">Kcal días ON / OFF</div>
+                  <div className="grid grid-cols-3 gap-2 mb-2">
+                    <div>
+                      <div className="text-[9px] text-amber font-bold mb-1">Kcal ON</div>
+                      <input type="number" value={w.kcal_on ?? ''} placeholder="—"
+                        onChange={(e) => updateWeekNote(currentCheckin, i, { kcal_on: e.target.value === '' ? null : Number(e.target.value) })}
+                        className="bg-transparent text-amber text-sm font-bold outline-none w-full border-none" />
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-orange font-bold mb-1" style={{ color: '#FB923C' }}>Kcal OFF</div>
+                      <input type="number" value={w.kcal_off ?? ''} placeholder="—"
+                        onChange={(e) => updateWeekNote(currentCheckin, i, { kcal_off: e.target.value === '' ? null : Number(e.target.value) })}
+                        className="bg-transparent text-sm font-bold outline-none w-full border-none" style={{ color: '#FB923C' }} />
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-muted mb-1">Días ON / OFF</div>
+                      <div className="flex items-center gap-1 text-sm font-bold">
+                        <input type="number" min="0" max="7" value={w.dias_on ?? ''} placeholder="—"
+                          onChange={(e) => updateWeekNote(currentCheckin, i, { dias_on: e.target.value === '' ? null : Number(e.target.value) })}
+                          className="bg-transparent text-amber text-sm font-bold outline-none w-7 border-none" />
+                        {diasOff != null && <span className="text-muted text-xs">/ {diasOff} off</span>}
                       </div>
-                    );
-                  })}
+                    </div>
+                  </div>
+                  {/* Media calculada */}
+                  {kcalMedia != null && (
+                    <div className="text-[10px] text-muted">
+                      Media: <span className="text-amber font-bold">{kcalMedia} kcal/día</span>
+                      {w.dias_on != null && <span className="ml-1">({w.dias_on}d on · {diasOff}d off)</span>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Macros días ON */}
+                <div className="rounded-xl p-3" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
+                  <div className="text-muted text-[9px] uppercase tracking-widest mb-2">Macros días ON</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <div className="text-[9px] font-bold mb-1" style={{ color: '#5ECCFA' }}>Proteínas (g)</div>
+                      <input type="number" value={w.protein ?? ''} placeholder="—"
+                        onChange={(e) => updateWeekNote(currentCheckin, i, { protein: e.target.value === '' ? null : Number(e.target.value) })}
+                        className="bg-transparent text-sm font-bold outline-none w-full border-none text-cyan" />
+                    </div>
+                    <div>
+                      <div className="text-[9px] font-bold mb-1 text-amber">Carbos (g)</div>
+                      <input type="number" value={w.carbs ?? ''} placeholder="—"
+                        onChange={(e) => updateWeekNote(currentCheckin, i, { carbs: e.target.value === '' ? null : Number(e.target.value) })}
+                        className="bg-transparent text-amber text-sm font-bold outline-none w-full border-none" />
+                    </div>
+                    <div>
+                      <div className="text-[9px] font-bold mb-1" style={{ color: '#FB923C' }}>Grasas (g)</div>
+                      <input type="number" value={w.fat ?? ''} placeholder="—"
+                        onChange={(e) => updateWeekNote(currentCheckin, i, { fat: e.target.value === '' ? null : Number(e.target.value) })}
+                        className="bg-transparent text-sm font-bold outline-none w-full border-none" style={{ color: '#FB923C' }} />
+                    </div>
+                  </div>
+                  {/* Kcal calculadas desde macros */}
+                  {kcalMacros != null && (
+                    <div className="text-[10px] text-muted mt-2">
+                      Kcal calculadas: <span className="text-green font-bold">{kcalMacros} kcal</span>
+                      <span className="ml-1">
+                        ({w.protein ?? 0}P × 4 + {w.carbs ?? 0}C × 4 + {w.fat ?? 0}G × 9)
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
+
         {/* Resumen medias del mes */}
         {(() => {
-          const notes = currentCheckin.weekly_notes?.length ? currentCheckin.weekly_notes : defaultWeeklyNotes(currentCheckin.month);
+          const notes    = currentCheckin.weekly_notes?.length ? currentCheckin.weekly_notes : defaultWeeklyNotes(currentCheckin.month);
           const avgSteps = avgWeeklyField(notes, 'steps');
-          const avgKcal  = avgWeeklyField(notes, 'kcal_avg');
           const avgAdh   = avgWeeklyField(notes, 'adherence');
-          if (avgSteps == null && avgKcal == null && avgAdh == null) return null;
+          const kcalMedias = notes.map((w) => calcKcalMedia(w.kcal_on, w.kcal_off, w.dias_on)).filter((v) => v != null);
+          const avgKcal  = kcalMedias.length ? Math.round(kcalMedias.reduce((a, b) => a + b, 0) / kcalMedias.length) : null;
+          const avgProt  = avgWeeklyField(notes, 'protein');
+          const avgCarbs = avgWeeklyField(notes, 'carbs');
+          const avgFat   = avgWeeklyField(notes, 'fat');
+          if (!avgSteps && !avgKcal && !avgAdh && !avgProt) return null;
           return (
-            <div className="flex flex-wrap gap-4 mt-4 pt-4" style={{ borderTop: '1px solid var(--color-border)' }}>
-              {avgSteps != null && <div className="text-xs"><span className="text-muted">Media pasos: </span><span className="font-bold text-green">{avgSteps}</span></div>}
-              {avgKcal  != null && <div className="text-xs"><span className="text-muted">Media kcal: </span><span className="font-bold text-amber">{avgKcal}</span></div>}
-              {avgAdh   != null && <div className="text-xs"><span className="text-muted">Adherencia media: </span><span className="font-bold text-violet">{avgAdh}%</span></div>}
+            <div className="mt-4 pt-4 space-y-1.5" style={{ borderTop: '1px solid var(--color-border)' }}>
+              <div className="text-muted text-[9px] uppercase tracking-widest mb-2">Medias del mes</div>
+              <div className="flex flex-wrap gap-4 text-xs">
+                {avgSteps != null && <span><span className="text-muted">Pasos: </span><span className="font-bold text-green">{Math.round(avgSteps).toLocaleString()}</span></span>}
+                {avgKcal  != null && <span><span className="text-muted">Kcal media: </span><span className="font-bold text-amber">{avgKcal}</span></span>}
+                {avgAdh   != null && <span><span className="text-muted">Adherencia: </span><span className="font-bold text-violet">{avgAdh}%</span></span>}
+              </div>
+              {(avgProt || avgCarbs || avgFat) && (
+                <div className="flex flex-wrap gap-4 text-xs">
+                  {avgProt  != null && <span><span className="text-muted">Prot: </span><span className="font-bold text-cyan">{avgProt}g</span></span>}
+                  {avgCarbs != null && <span><span className="text-muted">Carbs: </span><span className="font-bold text-amber">{avgCarbs}g</span></span>}
+                  {avgFat   != null && <span><span className="text-muted">Grasas: </span><span className="font-bold" style={{ color: '#FB923C' }}>{avgFat}g</span></span>}
+                  {avgProt && avgCarbs && avgFat && (
+                    <span><span className="text-muted">Kcal macros: </span><span className="font-bold text-green">{calcKcalFromMacros(avgProt, avgCarbs, avgFat)}</span></span>
+                  )}
+                </div>
+              )}
             </div>
           );
         })()}
