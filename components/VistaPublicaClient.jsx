@@ -11,9 +11,8 @@ import {
 
 const MONTH_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 function monthLabel(ym) {
-  if (!ym) return '';
   const [,mm] = ym.split('-');
-  return MONTH_SHORT[Number(mm)-1] || '';
+  return MONTH_SHORT[Number(mm)-1];
 }
 
 export default function VistaPublicaClient({ cliente }) {
@@ -22,7 +21,7 @@ export default function VistaPublicaClient({ cliente }) {
   const phase  = phaseForDate(phases, today);
   const color  = phase ? phaseColor(phases, phase.name) : '#7C878B';
 
-  const checkins = [...(cliente.tracking_checkins || [])].filter((c) => c.month).sort((a,b) => a.month.localeCompare(b.month));
+  const checkins = [...(cliente.tracking_checkins || [])].sort((a,b) => a.month.localeCompare(b.month));
   const weeks    = [...(cliente.tracking_timeline_weeks || [])].sort((a,b) => a.week_start.localeCompare(b.week_start));
   const thisMonth = today.slice(0,7);
   const currentCheckin = [...checkins].reverse().find((c) => c.month === thisMonth) || checkins[checkins.length - 1];
@@ -107,7 +106,7 @@ export default function VistaPublicaClient({ cliente }) {
           {[
             { label: 'Peso actual', val: currentW != null ? `${currentW} kg` : '—', col: '#5ECCFA' },
             { label: 'Cambio total', val: diff != null ? `${diff > 0 ? '+' : ''}${diff} kg` : '—', col: diff == null ? '#7C878B' : diff < 0 ? '#4ADE80' : '#F87171' },
-            { label: 'Fase', val: phase?.name || '—', col: color },
+            { label: 'Fase', val: phase?.name || '—', col },
           ].map((s) => (
             <div key={s.label} style={{ background: '#151A1D', border: '1px solid #212729', borderRadius: 12, padding: '12px 14px' }}>
               <div style={{ fontSize: 9, color: '#7C878B', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{s.label}</div>
@@ -235,8 +234,8 @@ export default function VistaPublicaClient({ cliente }) {
                     <div style={{ display: 'flex', gap: 12, marginTop: 4, flexWrap: 'wrap' }}>
                       {w.steps != null && <span style={{ fontSize: 10, color: '#4ADE80' }}>👣 {w.steps.toLocaleString()} pasos</span>}
                       {w.adherence != null && <span style={{ fontSize: 10, color: '#A78BFA' }}>🎯 {w.adherence}% adherencia</span>}
-                      {calcKcalMedia(w.kcal_on ?? calcKcalFromMacros(w.protein_on, w.carbs_on, w.fat_on), w.kcal_off ?? calcKcalFromMacros(w.protein_off, w.carbs_off, w.fat_off), w.dias_on) != null && (
-                        <span style={{ fontSize: 10, color: '#FBBF24' }}>🔥 {calcKcalMedia(w.kcal_on ?? calcKcalFromMacros(w.protein_on, w.carbs_on, w.fat_on), w.kcal_off ?? calcKcalFromMacros(w.protein_off, w.carbs_off, w.fat_off), w.dias_on)} kcal/día</span>
+                      {calcKcalMedia(w.kcal_on, w.kcal_off, w.dias_on) != null && (
+                        <span style={{ fontSize: 10, color: '#FBBF24' }}>🔥 {calcKcalMedia(w.kcal_on, w.kcal_off, w.dias_on)} kcal/día</span>
                       )}
                     </div>
                   </div>

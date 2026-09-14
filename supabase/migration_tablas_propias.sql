@@ -99,23 +99,17 @@ set read_token = substring(replace(id::text, '-', ''), 1, 8) || substring(replac
 where read_token is null;
 
 -- ============================================================
--- Migrar clientes existentes desde las tablas antiguas (active_clients / client_checkins / client_timeline_weeks)
--- para no perder los clientes ya creados. Es un INSERT, no borra nada de las tablas antiguas.
+-- OPCIONAL: Migrar clientes existentes de active_clients
+-- Descomenta si quieres copiar los clientes del manager
 -- ============================================================
-insert into public.tracking_clients (id, name, program, start_date, duration, status, phases, long_term_goal, notes, tracking_metrics, read_token)
-select id, name, program, start_date, duration, status, phases, long_term_goal, notes, tracking_metrics, read_token
-from public.active_clients
-where not exists (select 1 from public.tracking_clients tc where tc.id = active_clients.id);
-
-insert into public.tracking_checkins (tracking_client_id, month, weight, phase, goals, goal_status, training_notes, nutrition_notes, training_level, nutrition_level, weekly_notes, measurements, steps_avg, call_date, call_done, call_notes, notes)
-select active_client_id, month, weight, phase, goals, goal_status, training_notes, nutrition_notes, training_level, nutrition_level, weekly_notes, measurements, steps_avg, call_date, call_done, call_notes, notes
-from public.client_checkins cc
-where not exists (
-  select 1 from public.tracking_checkins tk
-  where tk.tracking_client_id = cc.active_client_id and tk.month = cc.month
-);
-
-insert into public.tracking_timeline_weeks (tracking_client_id, week_start, kcal, kcal_on, kcal_off, target_weight, target_overridden, real_weight)
-select active_client_id, week_start, kcal, kcal_on, kcal_off, target_weight, target_overridden, real_weight
-from public.client_timeline_weeks
-on conflict (tracking_client_id, week_start) do nothing;
+-- insert into public.tracking_clients (id, name, program, start_date, duration, status, phases, long_term_goal, notes, tracking_metrics, read_token)
+-- select id, name, program, start_date, duration, status, phases, long_term_goal, notes, tracking_metrics, read_token
+-- from public.active_clients;
+--
+-- insert into public.tracking_checkins (tracking_client_id, month, weight, phase, goals, goal_status, training_notes, nutrition_notes, training_level, nutrition_level, weekly_notes, measurements, steps_avg, call_date, call_done, call_notes, notes)
+-- select active_client_id, month, weight, phase, goals, goal_status, training_notes, nutrition_notes, training_level, nutrition_level, weekly_notes, measurements, steps_avg, call_date, call_done, call_notes, notes
+-- from public.client_checkins;
+--
+-- insert into public.tracking_timeline_weeks (tracking_client_id, week_start, kcal, kcal_on, kcal_off, target_weight, target_overridden, real_weight)
+-- select active_client_id, week_start, kcal, kcal_on, kcal_off, target_weight, target_overridden, real_weight
+-- from public.client_timeline_weeks;

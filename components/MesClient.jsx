@@ -90,6 +90,7 @@ export default function MesClient({ clienteId, clienteName, phases, initialCheck
         protein_on: existing.protein_on ?? null, carbs_on: existing.carbs_on ?? null, fat_on: existing.fat_on ?? null,
         protein_off: existing.protein_off ?? null, carbs_off: existing.carbs_off ?? null, fat_off: existing.fat_off ?? null,
         adherence: existing.adherence ?? null,
+        days: existing.days ?? Array(7).fill(null).map(() => ({ weight: null, steps: null, trained: null, diet: null })),
         saved: existing.saved || false,
       };
     });
@@ -197,21 +198,16 @@ export default function MesClient({ clienteId, clienteName, phases, initialCheck
   const w = weekDraft || weeklyNotes[activeWeekIdx] || {};
 
   // Cálculos de la semana activa
+  const kcalMediaW   = calcKcalMedia(w.kcal_on, w.kcal_off, w.dias_on);
   const kcalMacrosOn = calcKcalFromMacros(w.protein_on, w.carbs_on, w.fat_on);
   const kcalMacrosOff= calcKcalFromMacros(w.protein_off, w.carbs_off, w.fat_off);
-  // Si no se ha puesto un Kcal ON/OFF manual, se usa el calculado a partir de los macros
-  const effKcalOn    = w.kcal_on  ?? kcalMacrosOn;
-  const effKcalOff   = w.kcal_off ?? kcalMacrosOff;
-  const kcalMediaW    = calcKcalMedia(effKcalOn, effKcalOff, w.dias_on);
   const diasOff      = w.dias_on != null ? 7 - Number(w.dias_on) : null;
 
   // Medias del mes
   const notesArr   = weeklyNotes;
   const avgSteps   = avgWeeklyField(notesArr, 'steps');
   const avgAdh     = avgWeeklyField(notesArr, 'adherence');
-  const kcalMedias = notesArr
-    .map((n) => calcKcalMedia(n.kcal_on ?? calcKcalFromMacros(n.protein_on, n.carbs_on, n.fat_on), n.kcal_off ?? calcKcalFromMacros(n.protein_off, n.carbs_off, n.fat_off), n.dias_on))
-    .filter(Boolean);
+  const kcalMedias = notesArr.map((n) => calcKcalMedia(n.kcal_on, n.kcal_off, n.dias_on)).filter(Boolean);
   const avgKcal    = kcalMedias.length ? Math.round(kcalMedias.reduce((a,b)=>a+b,0)/kcalMedias.length) : null;
 
   return (
@@ -386,50 +382,36 @@ export default function MesClient({ clienteId, clienteName, phases, initialCheck
 
                 {/* Kcal ON / OFF */}
                 <div className="rounded-xl p-3 space-y-2" style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)' }}>
-                  <div className="flex items-center justify-between">
-                    <div className="text-[9px] text-muted uppercase tracking-widest">Kcal días ON / OFF</div>
-                    {(kcalMacrosOn != null || kcalMacrosOff != null) && (w.kcal_on == null && w.kcal_off == null) && (
-                      <div className="text-[9px] text-cyan">↳ usando kcal de macros</div>
-                    )}
-                  </div>
+                  <div className="text-[9px] text-muted uppercase tracking-widest">Kcal días ON / OFF</div>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <div className="text-[9px] font-bold text-amber mb-1">Kcal ON</div>
-                      <input type="number" value={w.kcal_on ?? ''} placeholder={kcalMacrosOn != null ? `${kcalMacrosOn}` : '—'}
+                      <input type="number" value={w.kcal_on ?? ''} placeholder="—"
                         onChange={(e) => updateDraft({ kcal_on: e.target.value === '' ? null : Number(e.target.value) })}
                         className="bg-transparent text-amber text-base font-bold outline-none w-full border-none" />
                     </div>
                     <div>
                       <div className="text-[9px] font-bold mb-1" style={{ color: '#FB923C' }}>Kcal OFF</div>
-                      <input type="number" value={w.kcal_off ?? ''} placeholder={kcalMacrosOff != null ? `${kcalMacrosOff}` : '—'}
+                      <input type="number" value={w.kcal_off ?? ''} placeholder="—"
                         onChange={(e) => updateDraft({ kcal_off: e.target.value === '' ? null : Number(e.target.value) })}
                         className="bg-transparent text-base font-bold outline-none w-full border-none" style={{ color: '#FB923C' }} />
                     </div>
                     <div>
-                      <div className="text-[9px] font-bold text-ink mb-1">Días ON (de 7)</div>
-                      <div className="flex items-center gap-1.5">
-                        <input type="number" min="0" max="7" value={w.dias_on ?? ''} placeholder="0-7"
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            if (v === '') return updateDraft({ dias_on: null });
-                            const n = Math.min(7, Math.max(0, Number(v)));
-                            updateDraft({ dias_on: n });
-                          }}
-                          className="bg-surface border border-border rounded-lg px-2 py-1 text-amber text-base font-bold outline-none w-14 text-center focus:border-amber" />
-                        <span className="text-muted text-xs">/ {diasOff != null ? `${diasOff} off` : '7'}</span>
+                      <div className="text-[9px] text-muted mb-1">Días ON / OFF</div>
+                      <div className="flex items-center gap-1">
+                        <input type="number" min="0" max="7" value={w.dias_on ?? ''} placeholder="—"
+                          onChange={(e) => updateDraft({ dias_on: e.target.value === '' ? null : Number(e.target.value) })}
+                          className="bg-transparent text-amber text-base font-bold outline-none w-8 border-none" />
+                        {diasOff != null && <span className="text-muted text-xs">/ {diasOff}d</span>}
                       </div>
                     </div>
                   </div>
-                  {kcalMediaW != null ? (
+                  {kcalMediaW != null && (
                     <div className="text-[10px] text-muted pt-1 border-t border-border">
-                      Media semanal: <span className="text-amber font-bold">{kcalMediaW} kcal/día</span>
-                      {w.dias_on != null && <span className="ml-1">({w.dias_on}d on × {effKcalOn ?? '?'} + {diasOff}d off × {effKcalOff ?? '?'}) / 7</span>}
+                      Media: <span className="text-amber font-bold">{kcalMediaW} kcal/día</span>
+                      {w.dias_on != null && <span className="ml-1">({w.dias_on}d on · {diasOff}d off)</span>}
                     </div>
-                  ) : (effKcalOn != null && effKcalOff != null) ? (
-                    <div className="text-[10px] text-muted pt-1 border-t border-border">
-                      Escribe cuántos <span className="text-amber font-semibold">días ON</span> (de 7) tuvo la semana para calcular la media
-                    </div>
-                  ) : null}
+                  )}
                 </div>
 
                 {/* Macros ON */}
@@ -491,6 +473,149 @@ export default function MesClient({ clienteId, clienteName, phases, initialCheck
                       Kcal calculadas: <span className="font-bold" style={{ color: '#FB923C' }}>{kcalMacrosOff} kcal</span>
                     </div>
                   )}
+                </div>
+
+                {/* ── DÍAS DE LA SEMANA ── */}
+                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+                  <div className="px-4 py-2.5 flex items-center justify-between" style={{ background: 'var(--color-surfaceAlt)' }}>
+                    <div className="text-[9px] text-muted uppercase tracking-widest">Registro diario</div>
+                    {/* Media de peso de los días rellenados */}
+                    {(() => {
+                      const days = w.days || [];
+                      const weights = days.map((d) => d.weight).filter((v) => v != null);
+                      const avgW = weights.length ? Math.round(weights.reduce((a,b)=>a+b,0)/weights.length * 10) / 10 : null;
+                      const avgS = (() => { const s = days.map((d) => d.steps).filter((v) => v != null); return s.length ? Math.round(s.reduce((a,b)=>a+b,0)/s.length) : null; })();
+                      return avgW != null ? (
+                        <div className="flex items-center gap-3 text-xs">
+                          <span className="text-muted">Media peso: <span className="text-cyan font-bold">{avgW} kg</span></span>
+                          {avgS != null && <span className="text-muted">Pasos: <span className="text-green font-bold">{avgS.toLocaleString()}</span></span>}
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+
+                  {/* Generar los 7 días de la semana activa */}
+                  {activeWeek && (() => {
+                    const DAY_NAMES = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+                    const days = w.days || Array(7).fill(null).map(() => ({
+                      weight: null, steps: null, trained: null, diet: null,
+                    }));
+
+                    return DAY_NAMES.map((dayName, di) => {
+                      const dateISO  = addDaysISO(activeWeek.weekStart, di);
+                      const [,, dd]  = dateISO.split('-');
+                      const [, mm]   = dateISO.split('-');
+                      const MONTHS   = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+                      const label    = `${dayName} ${parseInt(dd)} ${MONTHS[parseInt(mm)-1]}`;
+                      const day      = days[di] || { weight: null, steps: null, trained: null, diet: null };
+                      const isToday  = dateISO === today;
+
+                      const updateDay = (patch) => {
+                        const next = [...Array(7)].map((_, j) => j === di ? { ...(days[j] || {}), ...patch } : (days[j] || {}));
+                        updateDraft({ days: next });
+                      };
+
+                      return (
+                        <div key={di}
+                          style={{
+                            borderTop: '1px solid var(--color-border)',
+                            background: isToday ? 'rgba(94,204,250,0.04)' : di % 2 === 0 ? 'var(--color-bg)' : 'var(--color-surface)',
+                          }}>
+                          {/* Cabecera del día */}
+                          <div className="px-4 py-2 flex items-center gap-3">
+                            <div className="text-xs font-bold w-24 shrink-0 flex items-center gap-1.5">
+                              {isToday && <div className="w-1.5 h-1.5 rounded-full bg-cyan shrink-0" />}
+                              <span style={{ color: isToday ? 'var(--color-cyan)' : 'var(--color-ink)' }}>{label}</span>
+                            </div>
+
+                            {/* Peso del día */}
+                            <div className="flex items-center gap-1 flex-1">
+                              <input type="number" step="0.1" value={day.weight ?? ''} placeholder="Peso"
+                                onChange={(e) => updateDay({ weight: e.target.value === '' ? null : Number(e.target.value) })}
+                                className="bg-surfaceAlt border border-border text-cyan text-sm font-bold rounded-lg px-2 py-1 outline-none focus:border-cyan w-20" />
+                              {day.weight != null && <span className="text-muted text-[10px]">kg</span>}
+                            </div>
+
+                            {/* Pasos del día */}
+                            <div className="flex items-center gap-1 flex-1">
+                              <input type="number" value={day.steps ?? ''} placeholder="Pasos"
+                                onChange={(e) => updateDay({ steps: e.target.value === '' ? null : Number(e.target.value) })}
+                                className="bg-surfaceAlt border border-border text-green text-sm font-bold rounded-lg px-2 py-1 outline-none focus:border-cyan w-24" />
+                            </div>
+
+                            {/* Entrenó */}
+                            <div className="flex gap-1 shrink-0">
+                              {[
+                                { val: 'si',       label: '💪', title: 'Entrenó' },
+                                { val: 'no',       label: '✗',  title: 'No entrenó' },
+                                { val: 'descanso', label: '😴', title: 'Descanso programado' },
+                              ].map((opt) => (
+                                <button key={opt.val} title={opt.title}
+                                  onClick={() => updateDay({ trained: day.trained === opt.val ? null : opt.val })}
+                                  className="w-7 h-7 rounded-lg text-xs flex items-center justify-center transition-all"
+                                  style={{
+                                    background: day.trained === opt.val
+                                      ? opt.val === 'si' ? '#4ADE8020' : opt.val === 'no' ? '#F8717120' : '#FBBF2420'
+                                      : 'transparent',
+                                    border: `1px solid ${day.trained === opt.val
+                                      ? opt.val === 'si' ? '#4ADE80' : opt.val === 'no' ? '#F87171' : '#FBBF24'
+                                      : 'var(--color-border)'}`,
+                                  }}>{opt.label}</button>
+                              ))}
+                            </div>
+
+                            {/* Dieta */}
+                            <div className="flex gap-1 shrink-0">
+                              {[
+                                { val: 'si',      label: '✓', title: 'Dieta cumplida',  color: '#4ADE80' },
+                                { val: 'parcial', label: '~', title: 'Dieta parcial',   color: '#FBBF24' },
+                                { val: 'no',      label: '✗', title: 'Dieta no cumplida', color: '#F87171' },
+                              ].map((opt) => (
+                                <button key={opt.val} title={opt.title}
+                                  onClick={() => updateDay({ diet: day.diet === opt.val ? null : opt.val })}
+                                  className="w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center transition-all"
+                                  style={{
+                                    background: day.diet === opt.val ? `${opt.color}20` : 'transparent',
+                                    color:      day.diet === opt.val ? opt.color : 'var(--color-muted)',
+                                    border:     `1px solid ${day.diet === opt.val ? opt.color : 'var(--color-border)'}`,
+                                  }}>{opt.label}</button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+
+                  {/* Resumen semanal de días */}
+                  {(() => {
+                    const days = w.days || [];
+                    const trained   = days.filter((d) => d?.trained === 'si').length;
+                    const descanso  = days.filter((d) => d?.trained === 'descanso').length;
+                    const noTrained = days.filter((d) => d?.trained === 'no').length;
+                    const dietaSi   = days.filter((d) => d?.diet === 'si').length;
+                    const dietaParcial = days.filter((d) => d?.diet === 'parcial').length;
+                    const dietaNo   = days.filter((d) => d?.diet === 'no').length;
+                    const weights   = days.map((d) => d?.weight).filter((v) => v != null);
+                    const avgW      = weights.length ? Math.round(weights.reduce((a,b)=>a+b,0)/weights.length*10)/10 : null;
+                    if (!trained && !dietaSi && !avgW) return null;
+                    return (
+                      <div className="px-4 py-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"
+                        style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surfaceAlt)' }}>
+                        {avgW != null && <span><span className="text-muted">Media peso: </span><span className="font-bold text-cyan">{avgW} kg</span></span>}
+                        {trained > 0 && <span><span className="text-muted">Entrenos: </span><span className="font-bold text-green">{trained}d</span></span>}
+                        {descanso > 0 && <span><span className="text-muted">Descanso: </span><span className="font-bold text-amber">{descanso}d</span></span>}
+                        {noTrained > 0 && <span><span className="text-muted">Sin entrenar: </span><span className="font-bold text-red">{noTrained}d</span></span>}
+                        {(dietaSi + dietaParcial + dietaNo) > 0 && (
+                          <span><span className="text-muted">Dieta: </span>
+                            <span className="font-bold text-green">{dietaSi}✓</span>
+                            {dietaParcial > 0 && <span className="font-bold text-amber ml-1">{dietaParcial}~</span>}
+                            {dietaNo > 0 && <span className="font-bold text-red ml-1">{dietaNo}✗</span>}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Botón guardar semana */}

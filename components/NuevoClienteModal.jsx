@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Loader2, ChevronRight, ChevronLeft, Check } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { PHASE_NAMES, phaseColor, addDaysISO, todayISO } from '@/lib/timeline';
+import { PHASE_NAMES, phaseColor, addDaysISO } from '@/lib/timeline';
 
 const STEPS = ['Datos básicos', 'Fases', 'Peso inicial'];
 const DURACIONES = ['Mensual', 'Trimestral', 'Semestral', 'Anual', 'Personalizada'];
@@ -26,7 +26,7 @@ function StepDot({ n, active, done }) {
 
 export default function NuevoClienteModal({ onClose }) {
   const router  = useRouter();
-  const today   = todayISO();
+  const today   = new Date().toISOString().slice(0, 10);
 
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -89,13 +89,13 @@ export default function NuevoClienteModal({ onClose }) {
 
     // Si hay peso inicial, crear el checkin del mes actual
     if (startWeight && !isNaN(Number(startWeight))) {
-      const currentMonth = todayISO().slice(0, 7);
+      const currentMonth = new Date().toISOString().slice(0, 7);
       const { error: checkinErr } = await sb.from('tracking_checkins').insert({
         tracking_client_id: cliente.id,
         month: currentMonth,
         weight: Number(startWeight),
         phase: phases.find((p) => {
-          const today = todayISO();
+          const today = new Date().toISOString().slice(0, 10);
           return today >= p.start_date && today <= p.end_date;
         })?.name || null,
       });

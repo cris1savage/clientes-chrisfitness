@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useState } from 'react';
 import { ArrowLeft, BarChart2, Calendar, GitBranch, BookOpen, Layers, Copy, Check } from 'lucide-react';
-import { phaseColor, readToken, todayISO } from '@/lib/timeline';
+import { phaseColor, readToken } from '@/lib/timeline';
 import Logo from '@/components/Logo';
 
 const TABS = [
@@ -22,7 +22,7 @@ export default function ClienteLayoutClient({ cliente, children }) {
   const [copied, setCopied] = useState(false);
 
   const activeTab = TABS.find((t) => pathname.endsWith(`/${t.key}`))?.key || 'resumen';
-  const today  = todayISO();
+  const today  = new Date().toISOString().slice(0, 10);
   const phases = cliente.phases || [];
   const phase  = phases.find((p) => today >= p.start_date && today <= p.end_date) || null;
   const color  = phase ? phaseColor(phases, phase.name) : 'var(--color-muted)';
