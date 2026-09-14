@@ -2,11 +2,11 @@
 
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine, LineChart, Line,
+  ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 import {
-  phaseForDate, phaseColor, todayISO, mondayOf, fmtDate,
-  STRENGTH_COLOR, GOAL_COLORS, monthLabelFull, calcKcalMedia, calcKcalFromMacros,
+  phaseForDate, phaseColor, todayISO, fmtDate,
+  STRENGTH_COLOR, GOAL_COLORS, monthLabelFull, calcKcalMedia,
 } from '@/lib/timeline';
 
 const MONTH_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];

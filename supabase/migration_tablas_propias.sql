@@ -113,3 +113,32 @@ where read_token is null;
 -- insert into public.tracking_timeline_weeks (tracking_client_id, week_start, kcal, kcal_on, kcal_off, target_weight, target_overridden, real_weight)
 -- select active_client_id, week_start, kcal, kcal_on, kcal_off, target_weight, target_overridden, real_weight
 -- from public.client_timeline_weeks;
+
+-- ============================================================
+-- PARCHE: Políticas de lectura pública para subtablas
+-- Ejecutar si el enlace /ver/:token da error
+-- ============================================================
+
+-- Lectura pública de checkins (para el enlace del cliente)
+drop policy if exists "tracking_checkins_public_read" on public.tracking_checkins;
+create policy "tracking_checkins_public_read"
+  on public.tracking_checkins for select to anon
+  using (
+    exists (
+      select 1 from public.tracking_clients tc
+      where tc.id = tracking_checkins.tracking_client_id
+      and tc.read_token is not null
+    )
+  );
+
+-- Lectura pública de timeline (para el enlace del cliente)
+drop policy if exists "tracking_timeline_public_read" on public.tracking_timeline_weeks;
+create policy "tracking_timeline_public_read"
+  on public.tracking_timeline_weeks for select to anon
+  using (
+    exists (
+      select 1 from public.tracking_clients tc
+      where tc.id = tracking_timeline_weeks.tracking_client_id
+      and tc.read_token is not null
+    )
+  );

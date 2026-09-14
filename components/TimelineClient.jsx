@@ -61,7 +61,18 @@ export default function TimelineClient({ clienteId, phases, initialWeeks, initia
         </span>
       </div>
 
-      {/* Acciones */}
+      {/* Aviso si las semanas no empiezan en lunes */}
+      {weeks.length > 0 && (() => {
+        const firstDate = new Date(`${weeks[0].week_start}T00:00:00`);
+        const isMonday  = (firstDate.getDay() + 6) % 7 === 0;
+        if (isMonday) return null;
+        return (
+          <div className="rounded-xl px-4 py-3 flex items-center gap-2.5 text-sm"
+            style={{ background: '#FBBF2410', border: '1px solid #FBBF2430' }}>
+            <span className="text-amber text-xs">⚠️ Las fechas del timeline no empiezan en lunes. Pulsa <strong>Reiniciar cadena</strong> para corregirlo.</span>
+          </div>
+        );
+      })()}
       <div className="flex items-center justify-between flex-wrap gap-2">
         {weeks.length === 0 && phases.length > 0 && (
           <button onClick={ensureWeeks}
@@ -112,12 +123,15 @@ export default function TimelineClient({ clienteId, phases, initialWeeks, initia
             const kcalOnVal  = w.kcal_on ?? w.kcal ?? '';
             const kcalOffVal = w.kcal_off ?? '';
 
-            // Etiqueta del lunes — "Lun 14 sep"
+            // Fecha del LUNES de esa semana — siempre, independiente de lo que venga en week_start
             const mondayLabel = (() => {
               const DAYS   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
               const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+              // Calcular el lunes real de la semana que contiene week_start
               const d = new Date(`${w.week_start}T00:00:00`);
-              return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+              const dayOfWeek = (d.getDay() + 6) % 7; // 0=lun, 6=dom
+              d.setDate(d.getDate() - dayOfWeek); // retroceder al lunes
+              return `Lun ${d.getDate()} ${MONTHS[d.getMonth()]}`;
             })();
 
             return (
