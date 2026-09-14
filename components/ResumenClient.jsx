@@ -299,7 +299,7 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
       </Card>
 
       {/* ── Gráfica ── */}
-      {allPts.length >= 1 && (
+      {chartData.length >= 1 && (
         <div className="rounded-xl p-4" style={{ background: '#0D1117', border: '1px solid var(--color-border)' }}>
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <div className="text-muted text-[10px] font-semibold uppercase tracking-widest flex items-center gap-1.5">
