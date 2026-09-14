@@ -4,7 +4,7 @@ import FasesClient from '@/components/FasesClient';
 export default async function FasesPage({ params }) {
   const supabase = createClient();
   const { data: cliente } = await supabase
-    .from('tracking_clients')
+    .from('active_clients')
     .select('id, phases, long_term_goal')
     .eq('id', params.id)
     .single();
