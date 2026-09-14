@@ -46,14 +46,23 @@ export default function VistaPublicaClient({ cliente }) {
     if (m) goalW = Number(m[1].replace(',', '.'));
   }
 
-  // Gráfica
-  const chartData = checkins
-    .filter((c) => c.weight != null)
-    .map((c) => ({ label: safeMonth(c.month), Peso: Number(c.weight) }));
+  // Gráfica dual — objetivo (naranja) + real (azul)
+  const timelinePts2 = weeks
+    .filter((w) => w.target_weight != null || w.real_weight != null)
+    .map((w) => ({
+      label:    fmtDate(w.week_start),
+      Objetivo: w.target_weight != null ? Number(w.target_weight) : undefined,
+      Real:     w.real_weight   != null ? Number(w.real_weight)   : undefined,
+    }));
 
-  const pesos     = chartData.map((d) => d.Peso);
-  const domainMin = pesos.length ? Math.floor(Math.min(...pesos, goalW ?? Infinity) - 2) : 60;
-  const domainMax = pesos.length ? Math.ceil(Math.max(...pesos) + 1) : 100;
+  const chartData = timelinePts2.length >= 2 ? timelinePts2
+    : checkins.filter((c) => c.weight != null).map((c) => ({
+        label: safeMonth(c.month), Real: Number(c.weight),
+      }));
+
+  const allVals   = chartData.flatMap((d) => [d.Real, d.Objetivo].filter((v) => v != null));
+  const domainMin = allVals.length ? Math.floor(Math.min(...allVals) - 1) : 60;
+  const domainMax = allVals.length ? Math.ceil(Math.max(...allVals) + 1) : 100;
 
   // Stats del mes actual
   const weekNotes = (currentCheckin?.weekly_notes || []).filter((w) => w && (w.strength || w.note || w.steps));
@@ -186,7 +195,7 @@ export default function VistaPublicaClient({ cliente }) {
                 <AreaChart data={chartData} margin={{ top: 5, right: 8, left: -12, bottom: 0 }}>
                   <defs>
                     <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#5ECCFA" stopOpacity={0.22} />
+                      <stop offset="0%" stopColor="#5ECCFA" stopOpacity={0.18} />
                       <stop offset="100%" stopColor="#5ECCFA" stopOpacity={0} />
                     </linearGradient>
                   </defs>
@@ -196,16 +205,18 @@ export default function VistaPublicaClient({ cliente }) {
                   <Tooltip
                     contentStyle={{ background: '#0D1117', border: '1px solid #1C2226', borderRadius: 8, fontSize: 12 }}
                     labelStyle={{ color: '#C8D5DA' }}
-                    itemStyle={{ color: '#5ECCFA' }}
-                    formatter={(v) => [`${v} kg`, 'Peso']}
+                    formatter={(v, name) => [`${v} kg`, name === 'Objetivo' ? '🟠 Objetivo' : '🔵 Peso real']}
                   />
-                  {goalW != null && (
-                    <ReferenceLine y={goalW} stroke="#4ADE80" strokeDasharray="6 4" strokeWidth={1.5}
-                      label={{ value: `Objetivo ${goalW}kg`, position: 'insideBottomRight', fill: '#4ADE80', fontSize: 9, dy: -5 }} />
-                  )}
-                  <Area type="monotone" dataKey="Peso" stroke="#5ECCFA" strokeWidth={2.5} fill="url(#pg)"
+                  <Area type="monotone" dataKey="Objetivo"
+                    stroke="#FBBF24" strokeWidth={1.5} strokeDasharray="5 3"
+                    fill="none" dot={false}
+                    activeDot={{ r: 4, fill: '#FBBF24', stroke: '#0D1117', strokeWidth: 2 }}
+                    connectNulls />
+                  <Area type="monotone" dataKey="Real"
+                    stroke="#5ECCFA" strokeWidth={2.5} fill="url(#pg)"
                     dot={{ r: 4, fill: '#5ECCFA', stroke: '#0D1117', strokeWidth: 2 }}
-                    activeDot={{ r: 5, fill: '#5ECCFA', stroke: '#0D1117', strokeWidth: 2 }} />
+                    activeDot={{ r: 5, fill: '#5ECCFA', stroke: '#0D1117', strokeWidth: 2 }}
+                    connectNulls={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
