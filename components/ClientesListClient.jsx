@@ -43,14 +43,14 @@ function daysSinceWeight(c) {
   const ch = (c.tracking_checkins || []).filter((x) => x.weight != null).sort((a, b) => b.month.localeCompare(a.month));
   if (ch[0]) {
     // Calculamos desde el primer día del mes más reciente con peso
-    const d = new Date(`${ch[0].month}-01T12:00:00Z`);
+    const d = new Date(`${ch[0].month}-01T00:00:00`);
     const diff = (new Date(today) - d) / 86400000;
     return Math.floor(diff);
   }
   // Si no, miramos el real_weight más reciente del timeline
   const wk = (c.tracking_timeline_weeks || []).filter((x) => x.real_weight != null).sort((a, b) => b.week_start.localeCompare(a.week_start));
   if (wk[0]) {
-    const diff = (new Date(today) - new Date(`${wk[0].week_start}T12:00:00Z`)) / 86400000;
+    const diff = (new Date(today) - new Date(`${wk[0].week_start}T00:00:00`)) / 86400000;
     return Math.floor(diff);
   }
   return 999;
@@ -65,7 +65,7 @@ function nextCall(c) {
 }
 
 function daysUntil(dateISO) {
-  return Math.ceil((new Date(`${dateISO}T12:00:00Z`) - new Date()) / 86400000);
+  return Math.ceil((new Date(`${dateISO}T00:00:00`) - new Date()) / 86400000);
 }
 
 const GOAL_COLOR = { Cumplido: '#4ADE80', Parcial: '#FBBF24', 'No cumplido': '#F87171' };

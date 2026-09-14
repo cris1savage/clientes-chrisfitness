@@ -124,9 +124,28 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
     const n = rangeMap[chartRange] || 999;
     return useMonthly ? allPts.slice(-Math.ceil(n/4)) : allPts.slice(-n);
   })();
+
+  // Línea de objetivo del timeline — sigue la curva de target_weight semana a semana
+  const targetPts = weeks.filter((w) => w.target_weight != null).map((w) => ({
+    label: fmtDate(w.week_start), Objetivo: Number(w.target_weight),
+  }));
+  // Si usamos mensual para el peso, usamos el target_weight de la última semana de cada mes
+  const targetFiltered = chartRange === 'TODO' ? targetPts : targetPts.slice(-(rangeMap[chartRange] || 999));
+
+  // Fusionar peso real y objetivo en el mismo array para la gráfica semanal
+  const mergedPts = (() => {
+    if (useMonthly) return filtered; // mensual: solo peso real, objetivo como ReferenceLine
+    const map = {};
+    weeklyPts.forEach((p) => { map[p.label] = { ...map[p.label], label: p.label, Peso: p.Peso }; });
+    targetFiltered.forEach((p) => { map[p.label] = { ...map[p.label], label: p.label, Objetivo: p.Objetivo }; });
+    return Object.values(map).sort((a, b) => a.label.localeCompare(b.label));
+  })();
+
+  const chartData = useMonthly ? filtered : mergedPts;
+  const allVals   = chartData.flatMap((d) => [d.Peso, d.Objetivo].filter(Boolean));
   const pesos     = filtered.map((d) => d.Peso);
-  const domainMin = pesos.length ? Math.floor(Math.min(...pesos, goalWeight ?? Infinity) - 2) : 60;
-  const domainMax = pesos.length ? Math.ceil(Math.max(...pesos) + 1) : 100;
+  const domainMin = allVals.length ? Math.floor(Math.min(...allVals) - 2) : 60;
+  const domainMax = allVals.length ? Math.ceil(Math.max(...allVals) + 1) : 100;
 
   const savePhases    = async (next) => { setPhases(next); await supabase.from('tracking_clients').update({ phases: next }).eq('id', clienteId); };
   const saveLongGoal  = async (v)    => { setLongTermGoal(v); await supabase.from('tracking_clients').update({ long_term_goal: v }).eq('id', clienteId); };
@@ -293,7 +312,7 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
           </div>
           <div className="w-full h-[210px]">
             <ResponsiveContainer>
-              <AreaChart data={filtered} margin={{ top: 5, right: 12, left: -10, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 5, right: 12, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id={`wg-${clienteId}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%"   stopColor="#5ECCFA" stopOpacity={0.22} />
@@ -305,9 +324,18 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
                 <XAxis dataKey="label" tick={{ fill:'#5A6870', fontSize:11 }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fill:'#5A6870', fontSize:11 }} tickLine={false} axisLine={false} domain={[domainMin, domainMax]} width={28} />
                 <Tooltip contentStyle={{ background:'#0D1117', border:'1px solid #1C2226', borderRadius:8, fontSize:12 }}
-                  labelStyle={{ color:'#C8D5DA' }} itemStyle={{ color:'#5ECCFA' }}
-                  formatter={(v) => [`${v} kg`, 'Peso']} />
-                {goalWeight != null && (
+                  labelStyle={{ color:'#C8D5DA' }}
+                  formatter={(v, name) => [`${v} kg`, name === 'Objetivo' ? 'Objetivo' : 'Peso']} />
+                {/* Línea de objetivo — verde, sigue la curva del timeline */}
+                {!useMonthly && (
+                  <Area type="monotone" dataKey="Objetivo"
+                    stroke="#4ADE80" strokeWidth={1.5} strokeDasharray="5 3"
+                    fill="none"
+                    dot={false}
+                    activeDot={{ r: 4, fill: '#4ADE80', stroke: '#0D1117', strokeWidth: 2 }} />
+                )}
+                {/* Línea de objetivo fija para vista mensual */}
+                {useMonthly && goalWeight != null && (
                   <ReferenceLine y={goalWeight} stroke="#4ADE80" strokeDasharray="6 4" strokeWidth={1.5}
                     label={{ value:`Objetivo ${goalWeight}kg`, position:'insideBottomRight', fill:'#4ADE80', fontSize:10, dy:-6 }} />
                 )}
