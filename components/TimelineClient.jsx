@@ -84,21 +84,22 @@ export default function TimelineClient({ clienteId, phases, initialWeeks, initia
 
       {/* Tabla */}
       {weeks.length > 0 && (
-        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
+        <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--color-border)' }}>
           {/* Cabecera */}
-          <div className="grid px-5 py-3 text-muted text-[10px] uppercase tracking-widest"
+          <div className="grid px-4 py-3 text-muted text-[10px] uppercase tracking-widest"
             style={{
               background: 'var(--color-surfaceAlt)',
-              gridTemplateColumns: '44px 100px 130px 90px 90px 100px 100px 60px',
+              gridTemplateColumns: '44px 110px 140px 100px 100px 110px 110px 64px',
+              minWidth: 800,
             }}>
             <div>Sem.</div>
-            <div>Fecha</div>
+            <div>Lunes</div>
             <div>Fase</div>
             <div>Kcal ON</div>
             <div>Kcal OFF</div>
             <div>Objetivo</div>
             <div>Real</div>
-            <div></div>
+            <div>Dif.</div>
           </div>
 
           {/* Filas */}
@@ -111,17 +112,28 @@ export default function TimelineClient({ clienteId, phases, initialWeeks, initia
             const kcalOnVal  = w.kcal_on ?? w.kcal ?? '';
             const kcalOffVal = w.kcal_off ?? '';
 
+            // Etiqueta del lunes — "Lun 14 sep"
+            const mondayLabel = (() => {
+              const DAYS   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+              const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+              const d = new Date(`${w.week_start}T00:00:00`);
+              return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+            })();
+
             return (
               <div key={w.id}
-                className="grid px-5 py-3 items-center"
+                className="grid px-4 py-3 items-center"
                 style={{
-                  gridTemplateColumns: '44px 100px 130px 90px 90px 100px 100px 60px',
+                  gridTemplateColumns: '44px 110px 140px 100px 100px 110px 110px 64px',
+                  minWidth: 800,
                   background:   isThisWeek ? '#5ECCFA08' : idx % 2 === 0 ? 'var(--color-bg)' : 'var(--color-surface)',
                   borderTop:    '1px solid var(--color-border)',
-                  borderLeft:   `2px solid ${isThisWeek ? 'var(--color-cyan)' : 'transparent'}`,
+                  borderLeft:   `3px solid ${isThisWeek ? 'var(--color-cyan)' : 'transparent'}`,
                 }}>
-                <span className="text-muted text-xs">{idx + 1}</span>
-                <span className="text-ink text-xs">{fmtDate(w.week_start)}</span>
+                <span className="text-muted text-xs font-semibold">{idx + 1}</span>
+                <span className="text-ink text-xs" style={{ color: isThisWeek ? 'var(--color-cyan)' : 'var(--color-ink)' }}>
+                  {mondayLabel}
+                </span>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-md w-fit"
                   style={{
                     background: ph ? `${phaseColor(phases, ph.name)}18` : 'transparent',
@@ -131,21 +143,21 @@ export default function TimelineClient({ clienteId, phases, initialWeeks, initia
                 </span>
                 <input type="number" value={kcalOnVal} placeholder="—"
                   onChange={(e) => editWeekField(w.id, { kcal_on: e.target.value ? Number(e.target.value) : null, kcal: e.target.value ? Number(e.target.value) : null })}
-                  className="bg-surface border border-border text-green rounded-lg px-2 py-1 text-xs w-14 outline-none focus:border-green" />
+                  className="bg-surface border border-border text-green rounded-lg px-2.5 py-1.5 text-sm w-20 outline-none focus:border-green" />
                 <input type="number" value={kcalOffVal} placeholder="—"
                   onChange={(e) => editWeekField(w.id, { kcal_off: e.target.value ? Number(e.target.value) : null })}
-                  className="bg-surface border border-border text-amber rounded-lg px-2 py-1 text-xs w-14 outline-none focus:border-amber" />
+                  className="bg-surface border border-border text-amber rounded-lg px-2.5 py-1.5 text-sm w-20 outline-none focus:border-amber" />
                 <input type="number" step="0.1" value={w.target_weight ?? ''}
                   onChange={(e) => editWeekTarget(idx, e.target.value)}
-                  className="rounded-lg px-2 py-1 text-xs w-16 outline-none font-semibold text-ink"
+                  className="rounded-lg px-2.5 py-1.5 text-sm w-20 outline-none font-semibold text-ink"
                   style={{
                     background:  w.target_overridden ? '#FBBF2412' : 'var(--color-surface)',
                     border:      `1px solid ${w.target_overridden ? 'var(--color-amber)' : 'var(--color-border)'}`,
                   }} />
                 <input type="number" step="0.1" value={w.real_weight ?? ''} placeholder="—"
                   onChange={(e) => editWeekField(w.id, { real_weight: e.target.value === '' ? null : Number(e.target.value) })}
-                  className="bg-surface border border-border text-ink rounded-lg px-2 py-1 text-xs w-16 outline-none focus:border-cyan" />
-                <span className="text-xs font-bold text-right"
+                  className="bg-surface border border-border text-ink rounded-lg px-2.5 py-1.5 text-sm w-20 outline-none focus:border-cyan" />
+                <span className="text-sm font-bold text-right pl-2"
                   style={{ color: diff == null ? 'var(--color-muted)' : diff <= 0 ? 'var(--color-green)' : 'var(--color-red)' }}>
                   {diff != null ? `${diff > 0 ? '+' : ''}${diff}` : '—'}
                 </span>
