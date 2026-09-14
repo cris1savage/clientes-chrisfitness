@@ -88,7 +88,7 @@ export default function BuscadorGlobal({ clientes = [] }) {
                 {results.map((c) => {
                   const phase = (c.phases || []).find((p) => today >= p.start_date && today <= p.end_date);
                   const color = phase ? phaseColor([], phase.name) : 'var(--color-muted)';
-                  const latestCheckin = [...(c.client_checkins || [])].sort((a, b) => b.month.localeCompare(a.month)).find((x) => x.weight != null);
+                  const latestCheckin = [...(c.tracking_checkins || [])].sort((a, b) => b.month.localeCompare(a.month)).find((x) => x.weight != null);
                   const peso = latestCheckin?.weight ?? null;
                   return (
                     <button

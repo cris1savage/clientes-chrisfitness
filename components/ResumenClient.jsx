@@ -128,11 +128,11 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
   const domainMin = pesos.length ? Math.floor(Math.min(...pesos, goalWeight ?? Infinity) - 2) : 60;
   const domainMax = pesos.length ? Math.ceil(Math.max(...pesos) + 1) : 100;
 
-  const savePhases    = async (next) => { setPhases(next); await supabase.from('active_clients').update({ phases: next }).eq('id', clienteId); };
-  const saveLongGoal  = async (v)    => { setLongTermGoal(v); await supabase.from('active_clients').update({ long_term_goal: v }).eq('id', clienteId); };
-  const saveNotes     = async (v)    => { setClienteNotes(v); await supabase.from('active_clients').update({ notes: v }).eq('id', clienteId); };
+  const savePhases    = async (next) => { setPhases(next); await supabase.from('tracking_clients').update({ phases: next }).eq('id', clienteId); };
+  const saveLongGoal  = async (v)    => { setLongTermGoal(v); await supabase.from('tracking_clients').update({ long_term_goal: v }).eq('id', clienteId); };
+  const saveNotes     = async (v)    => { setClienteNotes(v); await supabase.from('tracking_clients').update({ notes: v }).eq('id', clienteId); };
   const saveMetrics   = async ()     => {
-    await supabase.from('active_clients').update({ tracking_metrics: metrics }).eq('id', clienteId);
+    await supabase.from('tracking_clients').update({ tracking_metrics: metrics }).eq('id', clienteId);
     setMetricsSaved(true); setTimeout(() => setMetricsSaved(false), 2000);
   };
 

@@ -4,9 +4,9 @@ import HistorialClient from '@/components/HistorialClient';
 export default async function HistorialPage({ params }) {
   const supabase = createClient();
   const { data: checkins } = await supabase
-    .from('client_checkins')
+    .from('tracking_checkins')
     .select('*')
-    .eq('active_client_id', params.id)
+    .eq('tracking_client_id', params.id)
     .order('month', { ascending: false });
 
   return <HistorialClient clienteId={params.id} checkins={checkins || []} />;

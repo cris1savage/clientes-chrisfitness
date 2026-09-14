@@ -9,7 +9,7 @@ export default async function ClienteLayout({ children, params }) {
   if (!user) redirect('/login');
 
   const { data: cliente } = await supabase
-    .from('active_clients')
+    .from('tracking_clients')
     .select('id, name, program, start_date, status, phases, long_term_goal, duration, notes, read_token')
     .eq('id', params.id)
     .single();
