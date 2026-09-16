@@ -163,73 +163,59 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
 
-      {/* ── 5 cards ── */}
-      <div className="grid grid-cols-2 gap-2">
-        {/* Fila 1: peso + diferencia */}
-        <div className="rounded-xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
-          <div className="text-muted text-[10px] uppercase tracking-widest mb-1">Peso actual</div>
-          <div className="text-2xl font-bold leading-tight text-cyan">
-            {currentWeight != null ? `${currentWeight} kg` : '—'}
-          </div>
+      {/* ── FILA SUPERIOR: peso + cambio + fase + días ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="rounded-2xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
+          <div className="text-muted text-[10px] uppercase tracking-widest mb-2">Peso actual</div>
+          <div className="text-3xl font-bold text-cyan">{currentWeight != null ? `${currentWeight} kg` : '—'}</div>
         </div>
-        <div className="rounded-xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
-          <div className="text-muted text-[10px] uppercase tracking-widest mb-1">Desde el inicio</div>
-          <div className="text-2xl font-bold leading-tight" style={{ color: weightDiff == null ? 'var(--color-muted)' : weightDiff < 0 ? 'var(--color-green)' : 'var(--color-red)' }}>
+        <div className="rounded-2xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
+          <div className="text-muted text-[10px] uppercase tracking-widest mb-2">Desde el inicio</div>
+          <div className="text-3xl font-bold" style={{ color: weightDiff == null ? 'var(--color-muted)' : weightDiff < 0 ? 'var(--color-green)' : 'var(--color-red)' }}>
             {weightDiff != null ? `${weightDiff > 0 ? '+' : ''}${weightDiff} kg` : '—'}
           </div>
         </div>
-        {/* Fila 2: fase + kcal */}
-        <div className="rounded-xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
-          <div className="text-muted text-[10px] uppercase tracking-widest mb-1">Fase</div>
-          <div className="text-2xl font-bold leading-tight" style={{ color: currentPhaseName ? phaseColor(phases, currentPhaseName) : 'var(--color-muted)' }}>
+        <div className="rounded-2xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
+          <div className="text-muted text-[10px] uppercase tracking-widest mb-2">Fase actual</div>
+          <div className="text-xl font-bold" style={{ color: currentPhaseName ? phaseColor(phases, currentPhaseName) : 'var(--color-muted)' }}>
             {currentPhaseName || '—'}
           </div>
         </div>
-        <div className="rounded-xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
-          <div className="text-muted text-[10px] uppercase tracking-widest mb-1">Kcal semana</div>
-          {kcalOff != null ? (
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1"><span className="text-green text-lg font-bold">{kcalOn ?? '—'}</span><span className="text-muted text-[10px]">on</span></div>
-              <div className="flex items-center gap-1"><span className="text-amber text-lg font-bold">{kcalOff}</span><span className="text-muted text-[10px]">off</span></div>
+        <div className="rounded-2xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
+          <div className="text-muted text-[10px] uppercase tracking-widest mb-2">En el programa</div>
+          {diasPrograma != null ? (
+            <div>
+              <span className="text-violet text-2xl font-bold">{diasPrograma}</span>
+              <span className="text-muted text-xs ml-1">días</span>
+              <div className="text-muted text-xs mt-0.5">{Math.floor(diasPrograma / 7)} semanas · desde {startDate}</div>
             </div>
-          ) : (
-            <div className="text-2xl font-bold text-ink">{kcalOn ?? '—'}</div>
-          )}
+          ) : <span className="text-muted text-sm">—</span>}
         </div>
-        {/* Kcal media del mes — calculada sumando las semanas del Timeline */}
-        <div className="col-span-2 rounded-xl p-4" style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-muted text-[10px] uppercase tracking-widest"><Flame size={11} /> Kcal media (este mes · timeline)</div>
-            {kcalMonthAvg.weeksCount > 0 && <span className="text-muted text-[10px]">{kcalMonthAvg.weeksCount} semana{kcalMonthAvg.weeksCount !== 1 ? 's' : ''}</span>}
-          </div>
-          <div className="flex items-center gap-4 mt-1">
-            <div className="flex items-baseline gap-1"><span className="text-green text-xl font-bold">{kcalMonthAvg.on ?? '—'}</span><span className="text-muted text-[10px]">on</span></div>
-            <div className="flex items-baseline gap-1"><span className="text-amber text-xl font-bold">{kcalMonthAvg.off ?? '—'}</span><span className="text-muted text-[10px]">off</span></div>
-          </div>
+      </div>
+
+      {/* ── KCAL — media del mes desde timeline ── */}
+      <div className="rounded-2xl px-5 py-4 flex items-center justify-between flex-wrap gap-4"
+        style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
+        <div className="flex items-center gap-2 text-muted text-[10px] uppercase tracking-widest">
+          <Flame size={11} /> Kcal media · {monthLabelFull(today.slice(0,7))}
+          {kcalMonthAvg.weeksCount > 0 && <span className="ml-1">({kcalMonthAvg.weeksCount} sem.)</span>}
         </div>
-        {/* Fila 3: días en el programa — ocupa full width */}
-        <div className="col-span-2 rounded-xl px-4 py-3 flex items-center justify-between"
-          style={{ background: 'var(--color-surfaceAlt)', border: '1px solid var(--color-border)' }}>
-          <div className="text-muted text-[10px] uppercase tracking-widest">En el programa</div>
-          <div className="flex items-baseline gap-2">
-            {diasPrograma != null ? (
-              <>
-                <span className="text-violet text-xl font-bold">{diasPrograma}</span>
-                <span className="text-muted text-xs">días</span>
-                <span className="text-muted text-xs">·</span>
-                <span className="text-violet text-sm font-semibold">{Math.floor(diasPrograma / 7)} semanas</span>
-                {startDate && <span className="text-muted text-xs ml-1">desde {startDate}</span>}
-              </>
-            ) : (
-              <span className="text-muted text-sm">—</span>
-            )}
+        <div className="flex items-center gap-6">
+          <div className="text-center">
+            <div className="text-green text-2xl font-bold">{kcalMonthAvg.on ?? '—'}</div>
+            <div className="text-muted text-[9px] uppercase tracking-widest">días on</div>
+          </div>
+          <div className="text-border text-lg">·</div>
+          <div className="text-center">
+            <div className="text-amber text-2xl font-bold">{kcalMonthAvg.off ?? '—'}</div>
+            <div className="text-muted text-[9px] uppercase tracking-widest">días off</div>
           </div>
         </div>
       </div>
 
-      {/* ── Métricas ── */}
+      {/* ── MÉTRICAS ── */}
       <Card>
         <div className="flex items-center justify-between mb-4">
           <div className="text-muted text-[10px] font-semibold uppercase tracking-widest flex items-center gap-1.5">
@@ -258,7 +244,7 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
                     className="w-full bg-surfaceAlt border border-border text-ink rounded-lg px-2 py-1 text-xs outline-none focus:border-cyan" />
                   {m.autoField && (
                     <div className="text-[9px] text-muted mt-0.5">
-                      {autoVal != null ? `Calculado desde Mes actual: ${autoVal}${m.unit || ''}. Escribe aquí para sobreescribir.` : 'Se calculará solo al rellenar Mes actual.'}
+                      {isAuto ? `Calculado desde Mes actual: ${autoVal}. Escribe aquí para sobreescribir.` : `Valor manual. Deja vacío para usar el automático (${autoVal ?? '—'}).`}
                     </div>
                   )}
                 </div>
@@ -268,37 +254,36 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
         </div>
       </Card>
 
-      {/* ── Objetivos ── */}
+      {/* ── OBJETIVOS ── */}
       <Card>
-        <div className="text-muted text-[10px] font-semibold uppercase tracking-widest flex items-center gap-1.5 mb-3">
+        <div className="text-muted text-[10px] font-semibold uppercase tracking-widest flex items-center gap-1.5 mb-4">
           <Flag size={11} /> Objetivos
         </div>
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="flex gap-3">
             <div className="w-0.5 rounded-full shrink-0 self-stretch" style={{ background: 'var(--color-cyan)' }} />
             <div className="flex-1">
-              <div className="text-cyan text-[10px] font-bold mb-1">LARGO PLAZO</div>
+              <div className="text-cyan text-[10px] font-bold mb-1.5 uppercase tracking-widest">Largo plazo</div>
               <textarea value={longTermGoal} onChange={(e) => setLongTermGoal(e.target.value)} onBlur={(e) => saveLongGoal(e.target.value)}
                 placeholder="Ej. Llegar a 78kg con visibilidad abdominal para junio 2027..." rows={2}
                 className="bg-transparent border-none text-ink text-sm w-full outline-none resize-none leading-relaxed" />
             </div>
           </div>
-          {currentPhaseObj?.goal && (
+          {currentPhaseObj?.goal ? (
             <div className="flex gap-3">
               <div className="w-0.5 rounded-full shrink-0 self-stretch" style={{ background: 'var(--color-amber)' }} />
               <div className="flex-1">
-                <div className="text-amber text-[10px] font-bold mb-1">FASE ACTUAL — {currentPhaseName?.toUpperCase()}</div>
+                <div className="text-amber text-[10px] font-bold mb-1.5 uppercase tracking-widest">Fase actual — {currentPhaseName}</div>
                 <div className="text-ink text-sm leading-relaxed">{currentPhaseObj.goal}</div>
               </div>
             </div>
-          )}
-          {!currentPhaseObj?.goal && (
+          ) : (
             <div className="text-muted text-xs">Edita el objetivo de la fase desde la pestaña <span className="text-violet font-semibold">Fases</span>.</div>
           )}
         </div>
       </Card>
 
-      {/* ── Gráfica ── */}
+      {/* ── GRÁFICA ── */}
       {chartData.length >= 1 && (
         <div className="rounded-xl p-4" style={{ background: '#0D1117', border: '1px solid var(--color-border)' }}>
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
@@ -335,31 +320,15 @@ export default function ResumenClient({ clienteId, cliente, initialCheckins, ini
                   labelStyle={{ color:'#C8D5DA' }}
                   formatter={(v, name) => [`${v} kg`, name === 'Objetivo' ? '🟠 Objetivo' : '🔵 Peso real']}
                 />
-                {/* Línea objetivo — naranja discontinua */}
-                <Area
-                  type="monotone" dataKey="Objetivo"
-                  stroke="#FBBF24" strokeWidth={1.5} strokeDasharray="5 3"
-                  fill="none"
-                  dot={false}
-                  activeDot={{ r: 4, fill: '#FBBF24', stroke: '#0D1117', strokeWidth: 2 }}
-                  connectNulls
-                />
-                {/* Línea peso real — azul con área */}
-                <Area
-                  type="monotone" dataKey="Real"
-                  stroke="#5ECCFA" strokeWidth={2.5}
-                  fill={`url(#wg-${clienteId})`}
-                  dot={{ r:4, fill:'#5ECCFA', stroke:'#0D1117', strokeWidth:2 }}
-                  activeDot={{ r:5, fill:'#5ECCFA', stroke:'#0D1117', strokeWidth:2 }}
-                  connectNulls={false}
-                />
+                <Area type="monotone" dataKey="Objetivo" stroke="#FBBF24" strokeWidth={1.5} strokeDasharray="5 3" fill="none" dot={false} activeDot={{ r: 4, fill: '#FBBF24', stroke: '#0D1117', strokeWidth: 2 }} connectNulls />
+                <Area type="monotone" dataKey="Real" stroke="#5ECCFA" strokeWidth={2.5} fill={`url(#wg-${clienteId})`} dot={{ r:4, fill:'#5ECCFA', stroke:'#0D1117', strokeWidth:2 }} activeDot={{ r:5, fill:'#5ECCFA', stroke:'#0D1117', strokeWidth:2 }} connectNulls={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
       )}
 
-      {/* ── Notas privadas ── */}
+      {/* ── NOTAS PRIVADAS ── */}
       <Card>
         <div className="text-muted text-[10px] font-semibold uppercase tracking-widest mb-2">Notas privadas</div>
         <textarea value={clienteNotes} onChange={(e) => setClienteNotes(e.target.value)} onBlur={(e) => saveNotes(e.target.value)}

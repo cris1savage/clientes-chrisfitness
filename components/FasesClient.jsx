@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Trash2, Check } from 'lucide-react';
+import { Plus, Trash2, Check, ChevronUp, ChevronDown } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import Card from '@/components/Card';
 import { PHASE_NAMES, phaseColor, todayISO, addDaysISO } from '@/lib/timeline';
@@ -42,6 +42,8 @@ export default function FasesClient({ clienteId, initialPhases, initialGoal }) {
 
   const update = (i, patch) => save(phases.map((p, idx) => idx === i ? { ...p, ...patch } : p));
   const remove = (i)         => { if (window.confirm('¿Eliminar esta fase?')) save(phases.filter((_, idx) => idx !== i)); };
+  const moveUp   = (i) => { if (i === 0) return; const next = [...phases]; [next[i-1], next[i]] = [next[i], next[i-1]]; save(next); };
+  const moveDown = (i) => { if (i === phases.length - 1) return; const next = [...phases]; [next[i], next[i+1]] = [next[i+1], next[i]]; save(next); };
 
   return (
     <div className="space-y-5">
@@ -127,9 +129,22 @@ export default function FasesClient({ clienteId, initialPhases, initialGoal }) {
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                     style={{ background: `${color}25`, color }}>EN CURSO</span>
                 )}
-                <button onClick={() => remove(i)} className="text-red opacity-50 hover:opacity-100 ml-auto">
-                  <Trash2 size={14} />
-                </button>
+                {/* Botones reordenar */}
+                <div className="flex gap-0.5 ml-auto shrink-0">
+                  <button onClick={() => moveUp(i)} disabled={i === 0}
+                    className="p-1 rounded text-muted disabled:opacity-20 hover:text-ink transition-colors"
+                    title="Subir fase">
+                    <ChevronUp size={14} />
+                  </button>
+                  <button onClick={() => moveDown(i)} disabled={i === phases.length - 1}
+                    className="p-1 rounded text-muted disabled:opacity-20 hover:text-ink transition-colors"
+                    title="Bajar fase">
+                    <ChevronDown size={14} />
+                  </button>
+                  <button onClick={() => remove(i)} className="p-1 rounded text-red opacity-50 hover:opacity-100 ml-1">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
 
               {/* Cuerpo */}

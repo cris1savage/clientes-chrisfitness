@@ -116,6 +116,12 @@ export default function ClientesListClient({ clientes }) {
   const alertas = useMemo(() => {
     const out = [];
     clientes.forEach((c) => {
+      // No alertar si el cliente lleva menos de 7 días en el programa
+      const diasEnPrograma = c.start_date
+        ? Math.floor((new Date(today) - new Date(c.start_date + 'T12:00:00Z')) / 86400000)
+        : 999;
+      if (diasEnPrograma < 7) return; // cliente nuevo, sin alertas todavía
+
       const dias = daysSinceWeight(c);
       if (dias > 14 && !isSilenced(`peso_${c.id}`)) out.push({ tipo: 'sin_peso', cliente: c, valor: dias, silenceKey: `peso_${c.id}` });
 
@@ -276,12 +282,16 @@ export default function ClientesListClient({ clientes }) {
                     const gs   = getGoalStatus(c);
                     const dias = daysSinceWeight(c);
                     const col  = ph ? phaseColor([], ph.name) : 'var(--color-muted)';
+                    const diasEnPrograma = c.start_date
+                      ? Math.floor((new Date(today) - new Date(c.start_date + 'T12:00:00Z')) / 86400000)
+                      : 999;
 
                     return (
-                      <div key={c.id}
-                        className="w-full text-left rounded-xl p-4 cursor-pointer"
-                        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-                        onClick={() => router.push(`/clientes/${c.id}`)}>
+                      <a key={c.id}
+                        href={`/clientes/${c.id}`}
+                        className="w-full text-left rounded-xl p-4 cursor-pointer block"
+                        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', textDecoration: 'none' }}
+                        onClick={(e) => { if (!e.ctrlKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); router.push(`/clientes/${c.id}`); } }}>
                         <div className="flex items-center gap-3">
                           {/* Avatar */}
                           <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
@@ -299,7 +309,7 @@ export default function ClientesListClient({ clientes }) {
                               {gs && GOAL_COLOR[gs] && (
                                 <span className="text-[10px] font-bold" style={{ color: GOAL_COLOR[gs] }}>{gs}</span>
                               )}
-                              {dias > 14 && (
+                              {dias > 14 && diasEnPrograma >= 7 && (
                                 <span className="text-[10px] font-bold text-amber flex items-center gap-0.5">
                                   <AlertTriangle size={10} /> {dias}d sin peso
                                 </span>
@@ -331,7 +341,7 @@ export default function ClientesListClient({ clientes }) {
                             <Trash2 size={14} />
                           </button>
                         </div>
-                      </div>
+                      </a>
                     );
                   })}
                 </div>

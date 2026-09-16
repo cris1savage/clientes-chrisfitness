@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useState } from 'react';
-import { ArrowLeft, BarChart2, Calendar, GitBranch, BookOpen, Layers, Copy, Check } from 'lucide-react';
+import { ArrowLeft, BarChart2, Calendar, GitBranch, Layers, Copy, Check } from 'lucide-react';
 import { phaseColor, readToken } from '@/lib/timeline';
 import Logo from '@/components/Logo';
 
@@ -13,7 +13,6 @@ const TABS = [
   { key: 'medidas',   label: 'Medidas',    icon: Layers    },
   { key: 'timeline',  label: 'Timeline',   icon: GitBranch },
   { key: 'fases',     label: 'Fases',      icon: GitBranch },
-  { key: 'historial', label: 'Historial',  icon: BookOpen  },
 ];
 
 export default function ClienteLayoutClient({ cliente, children }) {

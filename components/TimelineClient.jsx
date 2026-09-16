@@ -25,7 +25,14 @@ export default function TimelineClient({ clienteId, phases, initialWeeks, initia
   const ensureWeeks = async () => {
     if (phases.length === 0) return;
     const startWeight = initialCheckins.find((c) => c.weight != null)?.weight || 80;
-    const generated   = generateWeeks(phases, phases[0].start_date, 52, startWeight);
+    // Calcular cuántas semanas hay desde el inicio hasta el fin de la última fase
+    const lastPhaseEnd = phases[phases.length - 1]?.end_date || phases[0].start_date;
+    const startDate    = phases[0].start_date;
+    const msPerWeek    = 7 * 24 * 60 * 60 * 1000;
+    const weeksNeeded  = Math.ceil(
+      (new Date(lastPhaseEnd + 'T12:00:00Z') - new Date(startDate + 'T12:00:00Z')) / msPerWeek
+    ) + 1; // +1 para incluir la semana del último día
+    const generated = generateWeeks(phases, startDate, Math.max(weeksNeeded, 4), startWeight);
     const { data } = await supabase
       .from('tracking_timeline_weeks')
       .upsert(
@@ -111,7 +118,7 @@ export default function TimelineClient({ clienteId, phases, initialWeeks, initia
             <button onClick={ensureWeeks}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold"
               style={{ background: 'var(--color-violet)', color: '#0D0A1F' }}>
-              <Plus size={14} /> Generar 52 semanas
+              <Plus size={14} /> Generar semanas del plan
             </button>
           )}
           {phases.length === 0 && (
