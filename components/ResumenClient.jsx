@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import Card from '@/components/Card';
 import {
   phaseForDate, phaseColor, todayISO, mondayOf, fmtDate, addDaysISO,
-  avgKcalForMonth, avgWeeklyField,
+  avgKcalForMonth, avgWeeklyField, monthLabelFull,
 } from '@/lib/timeline';
 
 const MONTH_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
